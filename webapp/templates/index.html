@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CalcioAI</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: Arial, Helvetica, sans-serif;
+            background: #0b1020;
+            color: #ffffff;
+        }
+
+        .container {
+            width: 92%;
+            max-width: 1100px;
+            margin: 0 auto;
+        }
+
+        header {
+            padding: 35px 0 25px;
+            text-align: center;
+        }
+
+        .logo {
+            font-size: 42px;
+            font-weight: 900;
+            letter-spacing: 1px;
+        }
+
+        .subtitle {
+            margin-top: 8px;
+            color: #9ca3af;
+            font-size: 16px;
+        }
+
+        .date {
+            margin-top: 18px;
+            display: inline-block;
+            padding: 8px 15px;
+            border-radius: 20px;
+            background: #151c33;
+            color: #a5b4fc;
+            font-size: 14px;
+        }
+
+        .matches {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 18px;
+            padding-bottom: 40px;
+        }
+
+        .match-card {
+            background: #12182b;
+            border: 1px solid #252d46;
+            border-radius: 18px;
+            padding: 22px;
+            transition: 0.2s;
+        }
+
+        .match-card:hover {
+            transform: translateY(-3px);
+            border-color: #4f46e5;
+        }
+
+        .league {
+            font-size: 13px;
+            color: #a5b4fc;
+            font-weight: bold;
+            margin-bottom: 15px;
+        }
+
+        .teams {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            font-size: 18px;
+            font-weight: bold;
+            min-height: 55px;
+        }
+
+        .team {
+            width: 42%;
+            text-align: center;
+        }
+
+        .vs {
+            color: #6b7280;
+            font-size: 13px;
+            width: 16%;
+            text-align: center;
+        }
+
+        .time {
+            text-align: center;
+            margin: 18px 0;
+            font-size: 14px;
+            color: #9ca3af;
+        }
+
+        .analyse-button {
+            display: block;
+            text-align: center;
+            text-decoration: none;
+            background: #4f46e5;
+            color: white;
+            padding: 13px 15px;
+            border-radius: 12px;
+            font-weight: bold;
+            transition: 0.2s;
+        }
+
+        .analyse-button:hover {
+            background: #6366f1;
+        }
+
+        .empty {
+            text-align: center;
+            padding: 50px 20px;
+            background: #12182b;
+            border-radius: 18px;
+            color: #9ca3af;
+        }
+
+        footer {
+            text-align: center;
+            padding: 30px 0 40px;
+            color: #6b7280;
+            font-size: 13px;
+        }
+
+        @media (max-width: 600px) {
+            .logo {
+                font-size: 32px;
+            }
+
+            .teams {
+                font-size: 16px;
+            }
+
+            .match-card {
+                padding: 18px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+<header>
+    <div class="container">
+
+        <div class="logo">
+            ⚽ CalcioAI
+        </div>
+
+        <div class="subtitle">
+            Analisi intelligente delle partite di calcio
+        </div>
+
+        <div class="date">
+            📅 Partite di oggi
+        </div>
+
+    </div>
+</header>
+
+<main class="container">
+
+    {% if partite %}
+
+        <div class="matches">
+
+            {% for partita in partite %}
+
+                <div class="match-card">
+
+                    <div class="league">
+                        {{ partita.get("lega", "Campionato") }}
+                    </div>
+
+                    <div class="teams">
+
+                        <div class="team">
+                            {{ partita.get("casa", "Casa") }}
+                        </div>
+
+                        <div class="vs">
+                            VS
+                        </div>
+
+                        <div class="team">
+                            {{ partita.get("trasferta", "Trasferta") }}
+                        </div>
+
+                    </div>
+
+                    <div class="time">
+                        🕐 {{ partita.get("ora", "--:--") }}
+                    </div>
+
+                    <a
+                        class="analyse-button"
+                        href="/analizza/{{ partita.get('id') }}"
+                    >
+                        🔍 ANALIZZA PARTITA
+                    </a>
+
+                </div>
+
+            {% endfor %}
+
+        </div>
+
+    {% else %}
+
+        <div class="empty">
+
+            <h2>⚽ Nessuna partita disponibile</h2>
+
+            <p>
+                Al momento non ci sono partite disponibili.
+            </p>
+
+        </div>
+
+    {% endif %}
+
+</main>
+
+<footer>
+    CalcioAI — AI Football Analysis
+</footer>
+
+</body>
+</html>

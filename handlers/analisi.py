@@ -1,0 +1,561 @@
+from telegram import Update
+from telegram.ext import ContextTypes
+
+from services.squadra import cerca_squadra
+from services.partite_oggi import partite_oggi
+from services.statistiche import ultime_partite
+
+from services.ai_pronostico import calcola_indicatori
+from services.ai_score import calcola_ai_score, analizza_componenti_score
+
+from services.mercati_ai import calcola_mercati_ai, miglior_mercato
+from services.decision_engine import scegli_pronostico
+
+from services.ai_spiegazione import genera_spiegazione
+from services.affidabilita_ai import livello_affidabilita
+from services.storico_ai import salva_pronostico
+from services.apprendimento_ai import statistiche_mercati
+
+
+async def analisi(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    # ==========================================================
+    # PARTITE DI OGGI
+    # ==========================================================
+
+    partite = partite_oggi()
+
+    if not context.args:
+
+        await update.message.reply_text(
+            "⚽ Usa:\n\n"
+            "/analizza 1\n"
+            "per analizzare una partita di oggi"
+        )
+
+        return
+
+    # ==========================================================
+    # ANALISI DA NUMERO PARTITA
+    # ==========================================================
+
+    if context.args[0].isdigit():
+
+        indice = int(context.args[0]) - 1
+
+        if indice < 0 or indice >= len(partite):
+
+            await update.message.reply_text(
+                "❌ Numero partita non valido."
+            )
+
+            return
+
+        partita = partite[indice]
+
+    # ==========================================================
+    # ANALISI DA NOME SQUADRA
+    # ==========================================================
+
+    else:
+
+        nome = " ".join(context.args)
+
+        squadra = cerca_squadra(nome)
+
+        if squadra is None:
+
+            await update.message.reply_text(
+                "❌ Squadra non trovata."
+            )
+
+            return
+
+        partita = None
+
+        for p in partite:
+
+            if (
+                p["home_id"] == squadra["id"]
+                or
+                p["away_id"] == squadra["id"]
+            ):
+
+                partita = p
+                break
+
+        if partita is None:
+
+            await update.message.reply_text(
+                "❌ Nessuna partita trovata oggi per questa squadra."
+            )
+
+            return
+
+    # ==========================================================
+    # DATI PARTITA
+    # ==========================================================
+
+    home = partita["casa"]
+    away = partita["trasferta"]
+
+    home_id = partita["home_id"]
+    away_id = partita["away_id"]
+
+    lega = partita["lega"]
+    ora = partita["ora"]
+
+    # ==========================================================
+    # STATISTICHE
+    # ==========================================================
+
+    try:
+
+        statistiche_casa = ultime_partite(home_id)
+        statistiche_ospite = ultime_partite(away_id)
+
+    except Exception as e:
+
+        print(
+            f"❌ ERRORE STATISTICHE: "
+            f"{home} - {away} | {e}"
+        )
+
+        await update.message.reply_text(
+            "❌ Impossibile recuperare le statistiche."
+        )
+
+        return
+
+    if not statistiche_casa or not statistiche_ospite:
+
+        await update.message.reply_text(
+            "❌ Storico insufficiente per analizzare questa partita."
+        )
+
+        return
+
+    # ==========================================================
+    # INDICATORI AI
+    # ==========================================================
+
+    try:
+
+        indicatori = calcola_indicatori(
+            statistiche_casa,
+            statistiche_ospite
+        )
+
+    except Exception as e:
+
+        print(
+            f"❌ ERRORE INDICATORI: "
+            f"{home} - {away} | {e}"
+        )
+
+        await update.message.reply_text(
+            "❌ Errore nel calcolo degli indicatori AI."
+        )
+
+        return
+
+    # ==========================================================
+    # AI SCORE BASE
+    # ==========================================================
+
+    try:
+
+        ai_score_base = calcola_ai_score(
+            statistiche_casa,
+            statistiche_ospite,
+            indicatori,
+            lega
+        )
+
+    except Exception as e:
+
+        print(
+            f"❌ ERRORE AI SCORE: "
+            f"{home} - {away} | {e}"
+        )
+
+        await update.message.reply_text(
+            "❌ Errore nel calcolo dell'AI Score."
+        )
+
+        return
+
+    # ==========================================================
+    # COMPONENTI SCORE
+    # ==========================================================
+
+    componenti_score = analizza_componenti_score(
+        statistiche_casa,
+        statistiche_ospite,
+        indicatori
+    )
+
+    testo_score = ""
+
+    for nome, valore in componenti_score.items():
+
+        simbolo = "+" if valore >= 0 else ""
+
+        testo_score += (
+            f"{nome}: {simbolo}{valore}\n"
+        )
+
+    # ==========================================================
+    # MERCATI AI
+    # ==========================================================
+
+    try:
+
+        mercati = calcola_mercati_ai(
+            statistiche_casa,
+            statistiche_ospite,
+            indicatori
+        )
+
+    except Exception as e:
+
+        print(
+            f"❌ ERRORE MERCATI AI: "
+            f"{home} - {away} | {e}"
+        )
+
+        await update.message.reply_text(
+            "❌ Errore nel calcolo dei mercati AI."
+        )
+
+        return
+
+    if not mercati:
+
+        await update.message.reply_text(
+            "❌ Nessun mercato disponibile per questa partita."
+        )
+
+        return
+
+    # ==========================================================
+    # MIGLIORI MERCATI AI
+    # ==========================================================
+
+    try:
+
+        migliori = miglior_mercato(
+            mercati
+        )
+
+    except Exception as e:
+
+        print(
+            f"❌ ERRORE MIGLIORI MERCATI: {e}"
+        )
+
+        migliori = []
+
+    # ==========================================================
+    # RISCHIO BASE
+    # ==========================================================
+
+    if ai_score_base >= 90:
+
+        rischio_base = "🟢 Basso"
+
+    elif ai_score_base >= 75:
+
+        rischio_base = "🟡 Medio"
+
+    else:
+
+        rischio_base = "🔴 Alto"
+
+    # ==========================================================
+    # DECISION ENGINE
+    # ==========================================================
+
+    try:
+
+        scelta_ai = scegli_pronostico(
+            mercati,
+            ai_score_base,
+            rischio_base,
+            statistiche_casa,
+            statistiche_ospite,
+            indicatori,
+            lega
+        )
+
+    except Exception as e:
+
+        print(
+            f"❌ ERRORE DECISION ENGINE: "
+            f"{home} - {away} | {e}"
+        )
+
+        await update.message.reply_text(
+            "❌ Errore nella scelta del pronostico."
+        )
+
+        return
+
+    if not scelta_ai:
+
+        await update.message.reply_text(
+            "❌ Nessun pronostico disponibile."
+        )
+
+        return
+
+    # ==========================================================
+    # SCELTA FINALE
+    # ==========================================================
+
+    mercato_scelto = scelta_ai.get(
+        "mercato",
+        "Nessun pronostico"
+    )
+
+    probabilita = scelta_ai.get(
+        "probabilita",
+        0
+    )
+
+    value_index = scelta_ai.get(
+        "value_index",
+        scelta_ai.get("score_finale", 0)
+    )
+
+    # ==========================================================
+    # AI SCORE FINALE CON LEARNING
+    # ==========================================================
+
+    try:
+
+        ai_score = calcola_ai_score(
+            statistiche_casa,
+            statistiche_ospite,
+            indicatori,
+            lega,
+            mercato_scelto
+        )
+
+    except Exception as e:
+
+        print(
+            f"⚠️ ERRORE AI SCORE LEARNING: {e}"
+        )
+
+        ai_score = ai_score_base
+
+    # ==========================================================
+    # RISCHIO FINALE
+    # ==========================================================
+
+    if ai_score >= 90:
+
+        rischio = "🟢 Basso"
+
+    elif ai_score >= 75:
+
+        rischio = "🟡 Medio"
+
+    else:
+
+        rischio = "🔴 Alto"
+
+    # ==========================================================
+    # AFFIDABILITÀ AI
+    # ==========================================================
+
+    affidabilita = livello_affidabilita(
+        ai_score
+    )
+
+    # ==========================================================
+    # SPIEGAZIONE AI
+    # ==========================================================
+
+    try:
+
+        spiegazione = genera_spiegazione(
+            statistiche_casa,
+            statistiche_ospite,
+            mercato_scelto
+        )
+
+    except Exception as e:
+
+        print(
+            f"❌ ERRORE SPIEGAZIONE AI: {e}"
+        )
+
+        spiegazione = (
+            "Analisi basata sui dati statistici "
+            "recenti delle due squadre."
+        )
+
+    # ==========================================================
+    # STORICO MERCATO
+    # ==========================================================
+
+    storico_mercati = statistiche_mercati()
+
+    testo_storico = ""
+
+    if mercato_scelto in storico_mercati:
+
+        dati_storico = storico_mercati[
+            mercato_scelto
+        ]
+
+        testo_storico = (
+            "🧠 STORICO AI MERCATO\n\n"
+            f"⚽ {mercato_scelto}\n"
+            f"📊 Partite analizzate: "
+            f"{dati_storico['totale']}\n"
+            f"✅ Corrette: "
+            f"{dati_storico['corrette']}\n"
+            f"🎯 Precisione: "
+            f"{dati_storico['precisione']}%\n\n"
+        )
+
+    else:
+
+        testo_storico = (
+            "🧠 STORICO AI MERCATO\n\n"
+            f"⚽ {mercato_scelto}\n"
+            "⏳ Nessun dato storico sufficiente.\n"
+            "L'AI sta raccogliendo risultati.\n\n"
+        )
+
+    # ==========================================================
+    # CLASSIFICA VALUE INDEX
+    # ==========================================================
+
+    testo_mercati = ""
+
+    classifica = scelta_ai.get(
+        "classifica",
+        []
+    )
+
+    for posizione, elemento in enumerate(
+        classifica,
+        start=1
+    ):
+
+        try:
+
+            mercato, valore = elemento
+
+            testo_mercati += (
+                f"{posizione}️⃣ "
+                f"{mercato}: "
+                f"{valore}/100\n"
+            )
+
+        except (ValueError, TypeError):
+
+            testo_mercati += (
+                f"{posizione}️⃣ "
+                f"{elemento}\n"
+            )
+
+    if not testo_mercati:
+
+        testo_mercati = (
+            "Nessun mercato disponibile.\n"
+        )
+
+    # ==========================================================
+    # SALVATAGGIO STORICO
+    # ==========================================================
+
+    salva_pronostico(
+        partita,
+        {
+            "pronostico": mercato_scelto,
+            "fiducia": probabilita,
+            "ai_score": ai_score,
+            "rischio": rischio
+        }
+    )
+
+    # ==========================================================
+    # STATISTICHE
+    # ==========================================================
+
+    testo_statistiche = (
+
+        f"🏠 {home}\n"
+        f"📈 Forma: "
+        f"{statistiche_casa.get('forma', 'N/D')}\n"
+        f"⚽ Gol fatti: "
+        f"{statistiche_casa.get('gol_fatti', 0)}\n"
+        f"🥅 Gol subiti: "
+        f"{statistiche_casa.get('gol_subiti', 0)}\n\n"
+
+        f"✈️ {away}\n"
+        f"📈 Forma: "
+        f"{statistiche_ospite.get('forma', 'N/D')}\n"
+        f"⚽ Gol fatti: "
+        f"{statistiche_ospite.get('gol_fatti', 0)}\n"
+        f"🥅 Gol subiti: "
+        f"{statistiche_ospite.get('gol_subiti', 0)}"
+
+    )
+
+    # ==========================================================
+    # RISPOSTA TELEGRAM
+    # ==========================================================
+
+    await update.message.reply_text(
+
+        "🔥 CALCIOAI ANALISI AI\n\n"
+
+        f"🏆 {lega}\n"
+        f"🕒 {ora}\n\n"
+
+        f"⚽ {home}\n"
+        f"🆚 {away}\n\n"
+
+        f"{testo_statistiche}\n\n"
+
+        "🎯 PRONOSTICO AI\n"
+        f"{mercato_scelto}\n"
+        f"📊 Probabilità: {probabilita}%\n"
+        f"🤖 AI Score: {ai_score}/100\n"
+        f"💎 Value Index: {value_index}/100\n"
+        f"⚠️ Rischio: {rischio}\n\n"
+
+        "🧠 ANALISI SCORE AI\n"
+        f"{testo_score}\n"
+
+        "🧠 AFFIDABILITÀ AI\n"
+        f"{affidabilita['barra']} "
+        f"{affidabilita['percentuale']}%\n"
+        f"{affidabilita['livello']}\n\n"
+
+        "🧠 MOTIVAZIONE AI\n"
+        f"{spiegazione}\n\n"
+
+        f"{testo_storico}"
+
+        "💎 CLASSIFICA VALUE INDEX\n"
+        f"{testo_mercati}\n"
+
+        "📊 INDICATORI AI\n"
+        f"⚽ Over 1.5 Gol: "
+        f"{indicatori.get('over15', 0)}%\n"
+        f"⚽ Over 2.5 Gol: "
+        f"{indicatori.get('over25', 0)}%\n"
+        f"🤝 Gol/Gol: "
+        f"{indicatori.get('golgol', 0)}%\n"
+        f"🛡 Under 3.5 Gol: "
+        f"{indicatori.get('under35', 0)}%\n\n"
+
+        "🤖 Analisi generata da CalcioAI."
+    )
