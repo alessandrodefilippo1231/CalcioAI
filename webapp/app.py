@@ -1,28 +1,4 @@
-import sys
-import os
-
-# ============================================================
-# PATH PROGETTO PRINCIPALE
-# ============================================================
-
-sys.path.insert(
-    0,
-    os.path.dirname(
-        os.path.dirname(
-            os.path.abspath(__file__)
-        )
-    )
-)
-
-# ============================================================
-# FLASK
-# ============================================================
-
-from flask import Flask, render_template
-
-# ============================================================
-# CALCIOAI
-# ============================================================
+from flask import Flask, render_template, request
 
 from services.partite_oggi import partite_oggi
 from services.statistiche import ultime_partite
@@ -31,52 +7,36 @@ from services.ai_score import calcola_ai_score
 from services.mercati_ai import calcola_mercati_ai
 from services.decision_engine import scegli_pronostico
 from services.risultati_ai import calcola_risultati_esatti
+from services.marcatori import analizza_marcatori_partite
 
-
-# ============================================================
-# APP
-# ============================================================
 
 app = Flask(__name__)
 
 
 # ============================================================
-# FUNZIONI UTILI
+# UTILITY
 # ============================================================
 
-def numero(valore, decimali=1):
-    """
-    Converte un valore in numero per la visualizzazione.
-    """
+def numero(valore, default=0):
+
     try:
-        valore = float(valore)
+        return float(valore)
 
-        if decimali == 0:
-            return str(int(round(valore)))
-
-        return f"{valore:.{decimali}f}"
-
-    except Exception:
-        return "0"
+    except (TypeError, ValueError):
+        return default
 
 
 def classe_probabilita(probabilita):
-    """
-    Classe grafica in base alla probabilità.
-    """
 
-    try:
-        probabilita = float(probabilita)
-    except Exception:
-        probabilita = 0
+    probabilita = numero(probabilita)
 
-    if probabilita >= 80:
-        return "prob-high"
+    if probabilita >= 75:
+        return "alta"
 
-    if probabilita >= 65:
-        return "prob-medium"
+    if probabilita >= 55:
+        return "media"
 
-    return "prob-low"
+    return "bassa"
 
 
 # ============================================================
@@ -118,6 +78,47 @@ def home():
 
 
 # ============================================================
+# HOME TEST - DATA STORICA
+# ============================================================
+
+@app.route("/test/<data_test>")
+def home_test(data_test):
+
+    print("")
+    print("🌐 WEB APP - TEST DATA STORICA")
+    print(f"📅 DATA TEST: {data_test}")
+
+    try:
+
+        partite = partite_oggi(
+            data_test=data_test
+        )
+
+        print(
+            f"⚽ Partite trovate: {len(partite)}"
+        )
+
+        return render_template(
+            "index.html",
+            partite=partite
+        )
+
+    except Exception as e:
+
+        print(
+            f"❌ ERRORE HOME TEST: {e}"
+        )
+
+        return (
+            f"""
+            <h1>Errore CalcioAI</h1>
+            <p>{e}</p>
+            """,
+            500
+        )
+
+
+# ============================================================
 # ANALISI PARTITA
 # ============================================================
 
@@ -125,414 +126,1015 @@ def home():
 def analizza(fixture_id):
 
     print("")
-    print("=" * 70)
-    print(
-        f"🔍 WEB APP - ANALISI FIXTURE {fixture_id}"
-    )
-    print("=" * 70)
+    print("==============================================")
+    print("🧠 CALCIOAI - ANALISI PARTITA")
+    print("==============================================")
+    print(f"🆔 FIXTURE ID: {fixture_id}")
 
     try:
 
-        # ====================================================
-        # PARTITE
-        # ====================================================
+        # ----------------------------------------------------
+        # DATA
+        # ----------------------------------------------------
 
-        partite = partite_oggi()
+        data_test = request.args.get("data")
+
+        if data_test:
+
+            print(
+                f"📅 DATA ANALISI TEST: {data_test}"
+            )
+
+        else:
+
+            print(
+                "📅 DATA ANALISI: OGGI"
+            )
+
+        # ----------------------------------------------------
+        # RECUPERO PARTITE
+        # ----------------------------------------------------
+
+        if data_test:
+
+            partite = partite_oggi(
+                data_test=data_test
+            )
+
+        else:
+
+            partite = partite_oggi()
 
         partita = None
 
         for p in partite:
 
-            if int(
-                p.get("id", 0)
-            ) == int(fixture_id):
+            if int(p["id"]) == int(fixture_id):
 
                 partita = p
+
                 break
 
-        if partita is None:
+        # ----------------------------------------------------
+        # PARTITA NON TROVATA
+        # ----------------------------------------------------
+
+        if not partita:
 
             return (
-                """
-                <h1>Partita non trovata</h1>
+                f"""
+                <!DOCTYPE html>
 
-                <a href="/">
-                    ⬅ Torna alle partite
-                </a>
+                <html lang="it">
+
+                <head>
+
+                    <meta charset="UTF-8">
+
+                    <title>
+                        CalcioAI - Partita non trovata
+                    </title>
+
+                </head>
+
+                <body
+                    style="
+                        background:#0b1020;
+                        color:white;
+                        font-family:Arial;
+                        padding:40px;
+                    "
+                >
+
+                    <h1>
+                        ⚠️ Partita non trovata
+                    </h1>
+
+                    <p>
+                        Fixture ID:
+                        <strong>{fixture_id}</strong>
+                    </p>
+
+                    <p>
+                        Data utilizzata:
+                        <strong>
+                            {data_test if data_test else "oggi"}
+                        </strong>
+                    </p>
+
+                    <p>
+                        La partita non è presente
+                        nei dati restituiti da Football-Data.org
+                        per questa data.
+                    </p>
+
+                </body>
+
+                </html>
                 """,
                 404
             )
 
-        # ====================================================
+        # ----------------------------------------------------
         # DATI PARTITA
-        # ====================================================
+        # ----------------------------------------------------
 
-        casa = partita.get(
-            "casa",
-            "Casa"
-        )
+        casa = partita["casa"]
+        trasferta = partita["trasferta"]
 
-        trasferta = partita.get(
-            "trasferta",
-            "Trasferta"
-        )
+        home_id = partita["home_id"]
+        away_id = partita["away_id"]
 
         lega = partita.get(
             "lega",
             "Campionato"
         )
 
-        ora = partita.get(
-            "ora",
+        paese = partita.get(
+            "paese",
             ""
         )
 
-        home_id = partita.get(
-            "home_id"
-        )
-
-        away_id = partita.get(
-            "away_id"
-        )
-
-        print("")
-        print(
-            f"🏠 {casa}"
+        ora = partita.get(
+            "ora",
+            "--:--"
         )
 
         print(
-            f"✈️ {trasferta}"
+            f"⚽ {casa} - {trasferta}"
         )
 
         print(
             f"🏆 {lega}"
         )
 
-        print(
-            f"⏰ {ora}"
-        )
-
-        # ====================================================
-        # STATISTICHE
-        # ====================================================
+        # ----------------------------------------------------
+        # MARCATORI AI
+        # ----------------------------------------------------
 
         print("")
-        print("📊 Recupero statistiche...")
+        print("⚽ ANALISI PROBABILI MARCATORI")
 
-        stats_casa = ultime_partite(
+        try:
+
+            analisi_marcatori = analizza_marcatori_partite(
+                [partita]
+            )
+
+            if analisi_marcatori:
+
+                dati_marcatori = analisi_marcatori[0]
+
+            else:
+
+                dati_marcatori = {
+                    "marcatori_casa": [],
+                    "marcatori_trasferta": []
+                }
+
+        except Exception as e:
+
+            print(
+                f"⚠️ ERRORE MARCATORI: {e}"
+            )
+
+            dati_marcatori = {
+                "marcatori_casa": [],
+                "marcatori_trasferta": []
+            }
+
+        marcatori_casa = dati_marcatori.get(
+            "marcatori_casa",
+            []
+        )
+
+        marcatori_trasferta = dati_marcatori.get(
+            "marcatori_trasferta",
+            []
+        )
+
+        # ----------------------------------------------------
+        # STATISTICHE
+        # ----------------------------------------------------
+
+        print("")
+        print("📊 RECUPERO STATISTICHE")
+
+        statistiche_casa = ultime_partite(
             home_id
         )
 
-        stats_trasferta = ultime_partite(
+        statistiche_trasferta = ultime_partite(
             away_id
         )
 
-        if not isinstance(
-            stats_casa,
-            dict
-        ):
-            stats_casa = {}
-
-        if not isinstance(
-            stats_trasferta,
-            dict
-        ):
-            stats_trasferta = {}
-
-        print(
-            f"📊 Stats casa: {stats_casa}"
-        )
-
-        print(
-            f"📊 Stats trasferta: {stats_trasferta}"
-        )
-
-        # ====================================================
+        # ----------------------------------------------------
         # INDICATORI
-        # ====================================================
+        # ----------------------------------------------------
 
         print("")
-        print("📈 Calcolo indicatori...")
+        print("📈 CALCOLO INDICATORI")
 
-        indicatori = calcola_indicatori(
-            stats_casa,
-            stats_trasferta
-        )
+        try:
 
-        if not isinstance(
-            indicatori,
-            dict
-        ):
-            indicatori = {}
-
-        print(
-            f"📈 Indicatori: {indicatori}"
-        )
-
-        # ====================================================
-        # INDICATORI AI - VISUALIZZAZIONE
-        # ====================================================
-
-        indicatori_visuali = []
-
-        nomi_indicatori = {
-            "over15": "📈 Over 1.5",
-            "over25": "📈 Over 2.5",
-            "golgol": "⚽ Goal",
-            "under35": "📉 Under 3.5"
-        }
-
-        for key, value in indicatori.items():
-
-            nome = nomi_indicatori.get(
-                key,
-                key
+            indicatori = calcola_indicatori(
+                statistiche_casa,
+                statistiche_trasferta
             )
 
-            try:
-                valore = float(value)
-            except Exception:
-                valore = 0
+        except TypeError:
 
-            indicatori_visuali.append(
-                (
-                    nome,
-                    valore
-                )
+            indicatori = calcola_indicatori(
+                statistiche_casa,
+                statistiche_trasferta,
+                casa,
+                trasferta
             )
 
-        # ====================================================
+        # ----------------------------------------------------
         # AI SCORE
-        # ====================================================
+        # ----------------------------------------------------
 
         print("")
-        print("🤖 Calcolo AI SCORE...")
+        print("🤖 CALCOLO AI SCORE")
 
-        ai_score_base = calcola_ai_score(
-            stats_casa,
-            stats_trasferta,
+        ai_score = calcola_ai_score(
+            statistiche_casa,
+            statistiche_trasferta,
             indicatori,
             lega
         )
 
+        print(
+            f"🤖 AI SCORE: {ai_score}"
+        )
+
+        # ----------------------------------------------------
+        # RISCHIO
+        # ----------------------------------------------------
+
+        rischio = "Medio"
+
+        if numero(ai_score) >= 80:
+
+            rischio = "Basso"
+
+        elif numero(ai_score) < 60:
+
+            rischio = "Alto"
+
+        # ----------------------------------------------------
+        # MERCATI AI
+        # ----------------------------------------------------
+
+        print("")
+        print("🎯 CALCOLO MERCATI AI")
+
         try:
 
-            ai_score_base = float(
-                ai_score_base
+            mercati = calcola_mercati_ai(
+                statistiche_casa,
+                statistiche_trasferta,
+                indicatori
             )
 
-        except Exception:
+        except TypeError:
 
-            ai_score_base = 0
+            try:
 
-        print(
-            f"🤖 AI SCORE: {ai_score_base:.1f}"
-        )
+                mercati = calcola_mercati_ai(
+                    statistiche_casa,
+                    statistiche_trasferta
+                )
 
-        # ====================================================
-        # RISCHIO BASE
-        # ====================================================
+            except Exception as e:
 
-        if ai_score_base >= 85:
+                print(
+                    f"⚠️ ERRORE MERCATI: {e}"
+                )
 
-            rischio_base = "Basso"
+                mercati = {}
 
-        elif ai_score_base >= 70:
+        except Exception as e:
 
-            rischio_base = "Medio"
+            print(
+                f"⚠️ ERRORE MERCATI: {e}"
+            )
 
-        else:
-
-            rischio_base = "Alto"
-
-        print(
-            f"⚠️ Rischio base: {rischio_base}"
-        )
-
-        # ====================================================
-        # MERCATI AI
-        # ====================================================
-
-        print("")
-        print("🎯 Calcolo mercati AI...")
-
-        mercati = calcola_mercati_ai(
-            stats_casa,
-            stats_trasferta,
-            indicatori
-        )
-
-        if not isinstance(
-            mercati,
-            dict
-        ):
             mercati = {}
 
-        print(
-            f"🎯 Mercati: {mercati}"
-        )
-
-        # ====================================================
+        # ----------------------------------------------------
         # DECISION ENGINE
-        # ====================================================
+        # ----------------------------------------------------
 
         print("")
-        print("🧠 Avvio Decision Engine...")
+        print("🧠 DECISION ENGINE")
 
-        decisione = scegli_pronostico(
-            mercati=mercati,
-            ai_score=ai_score_base,
-            indicatori=indicatori,
-            lega=lega,
-            rischio=rischio_base
-        )
+        try:
 
-        if not isinstance(
-            decisione,
-            dict
-        ):
+            decisione = scegli_pronostico(
+                mercati,
+                ai_score,
+                rischio,
+                statistiche_casa,
+                statistiche_trasferta,
+                indicatori,
+                lega
+            )
+
+            print(
+                f"🧠 DECISIONE AI: {decisione}"
+            )
+
+        except Exception as e:
+
+            print(
+                f"⚠️ ERRORE DECISION ENGINE: {e}"
+            )
 
             decisione = {}
 
-        print("")
-        print(
-            f"🧠 Decisione: {decisione}"
-        )
+        # ----------------------------------------------------
+        # LETTURA PRONOSTICO
+        # ----------------------------------------------------
 
-        # ====================================================
-        # PRONOSTICO
-        # ====================================================
+        if isinstance(decisione, dict):
 
-        pronostico = decisione.get(
-            "mercato",
-            "Nessun pronostico"
-        )
+            pronostico = decisione.get(
+                "pronostico",
+                decisione.get(
+                    "mercato",
+                    decisione.get(
+                        "scelta",
+                        "N/D"
+                    )
+                )
+            )
 
-        probabilita = decisione.get(
-            "probabilita",
-            0
-        )
+            fiducia = decisione.get(
+                "fiducia",
+                decisione.get(
+                    "probabilita",
+                    decisione.get(
+                        "confidence",
+                        0
+                    )
+                )
+            )
 
-        value_index = decisione.get(
-            "value_index",
-            0
-        )
+            value_index = decisione.get(
+                "value_index",
+                decisione.get(
+                    "vi",
+                    decisione.get(
+                        "value",
+                        0
+                    )
+                )
+            )
 
-        rischio = decisione.get(
-            "rischio",
-            rischio_base
-        )
+        else:
 
-        score_finale = decisione.get(
-            "score_finale",
-            ai_score_base
-        )
+            pronostico = str(
+                decisione
+            )
 
-        affidabilita = decisione.get(
-            "affidabilita_complessiva",
-            0
-        )
+            fiducia = 0
+            value_index = 0
 
-        giudizio = decisione.get(
-            "giudizio",
-            ""
-        )
-
-        classifica = decisione.get(
-            "classifica",
-            []
-        )
-
-        # ====================================================
+        # ----------------------------------------------------
         # RISULTATI ESATTI
-        # ====================================================
+        # ----------------------------------------------------
 
         print("")
-        print("🎯 Calcolo risultati esatti...")
+        print("🔢 CALCOLO RISULTATI ESATTI")
 
-        risultati_esatti = calcola_risultati_esatti(
-            stats_casa,
-            stats_trasferta,
-            indicatori,
-            numero_risultati=3
-        )
+        try:
 
-        if not isinstance(
-            risultati_esatti,
-            list
-        ):
+            risultati_esatti = calcola_risultati_esatti(
+                statistiche_casa,
+                statistiche_trasferta
+            )
+
+        except TypeError:
+
+            try:
+
+                risultati_esatti = calcola_risultati_esatti(
+                    statistiche_casa,
+                    statistiche_trasferta,
+                    indicatori
+                )
+
+            except Exception as e:
+
+                print(
+                    f"⚠️ ERRORE RISULTATI ESATTI: {e}"
+                )
+
+                risultati_esatti = []
+
+        except Exception as e:
+
+            print(
+                f"⚠️ ERRORE RISULTATI ESATTI: {e}"
+            )
+
             risultati_esatti = []
 
-        print("")
-        print(
-            f"🎯 RISULTATI ESATTI DA MOSTRARE: "
-            f"{risultati_esatti}"
-        )
-
         # ====================================================
-        # FORMA
+        # HTML
         # ====================================================
 
-        forma_casa = stats_casa.get(
-            "forma",
-            ""
-        )
+        html = f"""
+        <!DOCTYPE html>
 
-        forma_trasferta = stats_trasferta.get(
-            "forma",
-            ""
-        )
+        <html lang="it">
 
-        # ====================================================
-        # STATISTICHE GOL
-        # ====================================================
+        <head>
 
-        gol_fatti_casa = stats_casa.get(
-            "gol_fatti",
-            0
-        )
+            <meta charset="UTF-8">
 
-        gol_subiti_casa = stats_casa.get(
-            "gol_subiti",
-            0
-        )
+            <meta
+                name="viewport"
+                content="width=device-width, initial-scale=1.0"
+            >
 
-        gol_fatti_trasferta = stats_trasferta.get(
-            "gol_fatti",
-            0
-        )
+            <title>
+                CalcioAI - {casa} vs {trasferta}
+            </title>
 
-        gol_subiti_trasferta = stats_trasferta.get(
-            "gol_subiti",
-            0
-        )
+            <style>
 
-        # ====================================================
-        # HTML RISULTATI ESATTI
-        # ====================================================
+                body {{
+                    margin: 0;
+                    padding: 0;
+                    background: #0b1020;
+                    color: white;
+                    font-family: Arial, sans-serif;
+                }}
 
-        risultati_html = ""
+                .container {{
+                    max-width: 1100px;
+                    margin: auto;
+                    padding: 25px;
+                }}
 
-        if risultati_esatti:
+                .header {{
+                    text-align: center;
+                    margin-bottom: 25px;
+                }}
 
-            for indice, risultato in enumerate(
-                risultati_esatti,
-                start=1
-            ):
+                .header h1 {{
+                    margin-bottom: 5px;
+                }}
 
-                if isinstance(
-                    risultato,
-                    dict
-                ):
+                .match {{
+                    background: #151c32;
+                    border-radius: 18px;
+                    padding: 25px;
+                    text-align: center;
+                    margin-bottom: 20px;
+                }}
+
+                .teams {{
+                    font-size: 28px;
+                    font-weight: bold;
+                    margin: 15px 0;
+                }}
+
+                .meta {{
+                    color: #aaa;
+                    margin: 5px 0;
+                }}
+
+                .card {{
+                    background: #151c32;
+                    border-radius: 18px;
+                    padding: 22px;
+                    margin-bottom: 20px;
+                }}
+
+                .card h2 {{
+                    margin-top: 0;
+                }}
+
+                .grid {{
+                    display: grid;
+                    grid-template-columns:
+                        repeat(auto-fit, minmax(220px, 1fr));
+                    gap: 15px;
+                }}
+
+                .box {{
+                    background: #202943;
+                    border-radius: 14px;
+                    padding: 18px;
+                }}
+
+                .value {{
+                    font-size: 28px;
+                    font-weight: bold;
+                    margin-top: 8px;
+                }}
+
+                .prediction {{
+                    font-size: 30px;
+                    font-weight: bold;
+                    text-align: center;
+                    padding: 20px;
+                    background: #202943;
+                    border-radius: 15px;
+                }}
+
+                .player {{
+                    background: #202943;
+                    border-radius: 12px;
+                    padding: 15px;
+                    margin-bottom: 10px;
+                }}
+
+                .player-name {{
+                    font-size: 19px;
+                    font-weight: bold;
+                }}
+
+                .small {{
+                    color: #aaa;
+                    font-size: 14px;
+                    margin-top: 5px;
+                }}
+
+                table {{
+                    width: 100%;
+                    border-collapse: collapse;
+                }}
+
+                th,
+                td {{
+                    padding: 10px;
+                    border-bottom: 1px solid #303952;
+                    text-align: left;
+                }}
+
+                th {{
+                    color: #aaa;
+                }}
+
+                .footer {{
+                    text-align: center;
+                    color: #777;
+                    margin-top: 30px;
+                    font-size: 13px;
+                }}
+
+            </style>
+
+        </head>
+
+        <body>
+
+        <div class="container">
+
+            <div class="header">
+
+                <h1>
+                    ⚽ CalcioAI
+                </h1>
+
+                <div>
+                    Analisi intelligente della partita
+                </div>
+
+            </div>
+
+
+            <!-- PARTITA -->
+
+            <div class="match">
+
+                <div class="meta">
+                    🏆 {lega}
+                </div>
+
+                <div class="teams">
+
+                    {casa}
+
+                    <br>
+
+                    <span style="color:#777;">
+                        VS
+                    </span>
+
+                    <br>
+
+                    {trasferta}
+
+                </div>
+
+                <div class="meta">
+                    🕒 {ora}
+                </div>
+
+                <div class="meta">
+                    🌍 {paese}
+                </div>
+
+            </div>
+
+
+            <!-- AI -->
+
+            <div class="card">
+
+                <h2>
+                    🤖 Pronostico AI
+                </h2>
+
+                <div class="prediction">
+
+                    {pronostico}
+
+                </div>
+
+                <br>
+
+                <div class="grid">
+
+                    <div class="box">
+
+                        <div>
+                            Fiducia
+                        </div>
+
+                        <div class="value">
+
+                            {numero(fiducia):.0f}%
+
+                        </div>
+
+                    </div>
+
+
+                    <div class="box">
+
+                        <div>
+                            AI Score
+                        </div>
+
+                        <div class="value">
+
+                            {numero(ai_score):.0f}
+
+                        </div>
+
+                    </div>
+
+
+                    <div class="box">
+
+                        <div>
+                            Value Index
+                        </div>
+
+                        <div class="value">
+
+                            {numero(value_index):.0f}
+
+                        </div>
+
+                    </div>
+
+
+                    <div class="box">
+
+                        <div>
+                            Rischio
+                        </div>
+
+                        <div class="value">
+
+                            {rischio}
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <!-- STATISTICHE -->
+
+            <div class="card">
+
+                <h2>
+                    📊 Statistiche recenti
+                </h2>
+
+                <div class="grid">
+
+                    <div class="box">
+
+                        <h3>
+                            {casa}
+                        </h3>
+
+                        <p>
+                            Forma:
+                            <strong>
+                                {statistiche_casa.get("forma", "N/D")}
+                            </strong>
+                        </p>
+
+                        <p>
+                            Gol fatti:
+                            <strong>
+                                {statistiche_casa.get("gol_fatti", 0)}
+                            </strong>
+                        </p>
+
+                        <p>
+                            Gol subiti:
+                            <strong>
+                                {statistiche_casa.get("gol_subiti", 0)}
+                            </strong>
+                        </p>
+
+                        <p>
+                            Media gol fatti:
+                            <strong>
+                                {numero(statistiche_casa.get("media_gol_fatti")):.2f}
+                            </strong>
+                        </p>
+
+                        <p>
+                            Media gol subiti:
+                            <strong>
+                                {numero(statistiche_casa.get("media_gol_subiti")):.2f}
+                            </strong>
+                        </p>
+
+                        <p>
+                            Over 1.5:
+                            <strong>
+                                {statistiche_casa.get("over15", 0)}%
+                            </strong>
+                        </p>
+
+                        <p>
+                            Over 2.5:
+                            <strong>
+                                {statistiche_casa.get("over25", 0)}%
+                            </strong>
+                        </p>
+
+                        <p>
+                            Goal/Goal:
+                            <strong>
+                                {statistiche_casa.get("golgol", 0)}%
+                            </strong>
+                        </p>
+
+                    </div>
+
+
+                    <div class="box">
+
+                        <h3>
+                            {trasferta}
+                        </h3>
+
+                        <p>
+                            Forma:
+                            <strong>
+                                {statistiche_trasferta.get("forma", "N/D")}
+                            </strong>
+                        </p>
+
+                        <p>
+                            Gol fatti:
+                            <strong>
+                                {statistiche_trasferta.get("gol_fatti", 0)}
+                            </strong>
+                        </p>
+
+                        <p>
+                            Gol subiti:
+                            <strong>
+                                {statistiche_trasferta.get("gol_subiti", 0)}
+                            </strong>
+                        </p>
+
+                        <p>
+                            Media gol fatti:
+                            <strong>
+                                {numero(statistiche_trasferta.get("media_gol_fatti")):.2f}
+                            </strong>
+                        </p>
+
+                        <p>
+                            Media gol subiti:
+                            <strong>
+                                {numero(statistiche_trasferta.get("media_gol_subiti")):.2f}
+                            </strong>
+                        </p>
+
+                        <p>
+                            Over 1.5:
+                            <strong>
+                                {statistiche_trasferta.get("over15", 0)}%
+                            </strong>
+                        </p>
+
+                        <p>
+                            Over 2.5:
+                            <strong>
+                                {statistiche_trasferta.get("over25", 0)}%
+                            </strong>
+                        </p>
+
+                        <p>
+                            Goal/Goal:
+                            <strong>
+                                {statistiche_trasferta.get("golgol", 0)}%
+                            </strong>
+                        </p>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <!-- INDICATORI -->
+
+            <div class="card">
+
+                <h2>
+                    📈 Indicatori AI
+                </h2>
+
+                <div class="grid">
+        """
+
+        if isinstance(indicatori, dict):
+
+            for nome, valore in indicatori.items():
+
+                html += f"""
+                    <div class="box">
+
+                        <div>
+                            {nome}
+                        </div>
+
+                        <div class="value">
+
+                            {valore}
+
+                        </div>
+
+                    </div>
+                """
+
+        html += """
+
+                </div>
+
+            </div>
+
+
+            <!-- MERCATI -->
+
+            <div class="card">
+
+                <h2>
+                    🎯 Mercati AI
+                </h2>
+
+        """
+
+        if isinstance(mercati, dict) and mercati:
+
+            html += """
+
+                <table>
+
+                    <thead>
+
+                        <tr>
+
+                            <th>
+                                Mercato
+                            </th>
+
+                            <th>
+                                Probabilità
+                            </th>
+
+                        </tr>
+
+                    </thead>
+
+                    <tbody>
+
+            """
+
+            for mercato, dati in mercati.items():
+
+                if isinstance(dati, dict):
+
+                    probabilita = dati.get(
+                        "probabilita",
+                        dati.get(
+                            "prob",
+                            dati.get(
+                                "confidence",
+                                0
+                            )
+                        )
+                    )
+
+                else:
+
+                    probabilita = dati
+
+                html += f"""
+
+                        <tr>
+
+                            <td>
+                                {mercato}
+                            </td>
+
+                            <td>
+                                {numero(probabilita):.0f}%
+                            </td>
+
+                        </tr>
+
+                """
+
+            html += """
+
+                    </tbody>
+
+                </table>
+
+            """
+
+        else:
+
+            html += """
+
+                <p>
+                    Nessun mercato disponibile.
+                </p>
+
+            """
+
+        html += """
+
+            </div>
+
+
+            <!-- RISULTATI ESATTI -->
+
+            <div class="card">
+
+                <h2>
+                    🔢 Probabili risultati esatti
+                </h2>
+
+        """
+
+        if isinstance(risultati_esatti, list) and risultati_esatti:
+
+            for risultato in risultati_esatti:
+
+                if isinstance(risultato, dict):
 
                     score = risultato.get(
                         "risultato",
-                        "-"
+                        risultato.get(
+                            "score",
+                            risultato.get(
+                                "esito",
+                                "N/D"
+                            )
+                        )
                     )
 
-                    prob = risultato.get(
+                    probabilita = risultato.get(
                         "probabilita",
-                        0
+                        risultato.get(
+                            "prob",
+                            0
+                        )
                     )
 
                 else:
@@ -541,1346 +1143,253 @@ def analizza(fixture_id):
                         risultato
                     )
 
-                    prob = 0
+                    probabilita = 0
 
-                risultati_html += f"""
-                <div class="exact-score">
+                html += f"""
 
-                    <div class="exact-position">
-                        #{indice}
+                    <div class="player">
+
+                        <div class="player-name">
+                            {score}
+                        </div>
+
+                        <div class="small">
+                            Probabilità:
+                            {numero(probabilita):.0f}%
+                        </div>
+
                     </div>
 
-                    <div class="exact-result">
-                        ⚽ {score}
-                    </div>
-
-                    <div class="exact-probability">
-                        {numero(prob, 1)}%
-                    </div>
-
-                </div>
                 """
 
         else:
 
-            risultati_html = """
-            <div class="no-results">
-                Nessun risultato esatto disponibile.
-            </div>
+            html += """
+
+                <p>
+                    Nessun risultato disponibile.
+                </p>
+
             """
 
-        # ====================================================
-        # HTML MERCATI AI
-        # ====================================================
-
-        mercati_1x2 = [
-            ("1", mercati.get("1", 0)),
-            ("X", mercati.get("X", 0)),
-            ("2", mercati.get("2", 0)),
-        ]
-
-        mercati_over_under = [
-            ("Over 1.5", mercati.get("Over 1.5", 0)),
-            ("Over 2.5", mercati.get("Over 2.5", 0)),
-            ("Under 3.5", mercati.get("Under 3.5", 0)),
-        ]
-
-        mercati_goal = [
-            ("Goal", mercati.get("Goal", 0)),
-            ("No Goal", mercati.get("No Goal", 0)),
-        ]
-
-        mercati_doppia_chance = [
-            ("1X", mercati.get("1X", 0)),
-            ("X2", mercati.get("X2", 0)),
-            ("12", mercati.get("12", 0)),
-        ]
-
-        # ----------------------------------------------------
-        # HTML 1X2
-        # ----------------------------------------------------
-
-        html_1x2 = ""
-
-        for nome, prob in mercati_1x2:
-
-            html_1x2 += f"""
-            <div class="market-row">
-
-                <div class="market-name">
-                    <strong>
-                        {nome}
-                    </strong>
-                </div>
-
-                <div class="market-bar-container">
-
-                    <div class="market-bar">
-
-                        <div
-                            class="market-fill {classe_probabilita(prob)}"
-                            style="width:{prob}%"
-                        ></div>
-
-                    </div>
-
-                </div>
-
-                <div class="market-value">
-                    {numero(prob, 0)}%
-                </div>
+        html += """
 
             </div>
-            """
 
-        # ----------------------------------------------------
-        # HTML OVER / UNDER
-        # ----------------------------------------------------
 
-        html_over_under = ""
+            <!-- MARCATORI -->
 
-        for nome, prob in mercati_over_under:
+            <div class="card">
 
-            html_over_under += f"""
-            <div class="market-row">
+                <h2>
+                    ⚽ Probabili Marcatori AI
+                </h2>
 
-                <div class="market-name">
-                    <strong>
-                        {nome}
-                    </strong>
-                </div>
+                <div class="grid">
 
-                <div class="market-bar-container">
+                    <div>
 
-                    <div class="market-bar">
+                        <h3>
+        """
 
-                        <div
-                            class="market-fill {classe_probabilita(prob)}"
-                            style="width:{prob}%"
-                        ></div>
+        html += casa
 
-                    </div>
+        html += """
 
-                </div>
+                        </h3>
 
-                <div class="market-value">
-                    {numero(prob, 0)}%
-                </div>
+        """
 
-            </div>
-            """
+        if marcatori_casa:
 
-        # ----------------------------------------------------
-        # HTML GOAL
-        # ----------------------------------------------------
+            for giocatore in marcatori_casa:
 
-        html_goal = ""
+                nome = giocatore.get(
+                    "nome",
+                    "Giocatore"
+                )
 
-        for nome, prob in mercati_goal:
+                gol = giocatore.get(
+                    "gol",
+                    0
+                )
 
-            html_goal += f"""
-            <div class="market-row">
+                assist = giocatore.get(
+                    "assist",
+                    0
+                )
 
-                <div class="market-name">
-                    <strong>
-                        {nome}
-                    </strong>
-                </div>
+                rigori = giocatore.get(
+                    "rigori",
+                    0
+                )
 
-                <div class="market-bar-container">
+                probabilita = giocatore.get(
+                    "probabilita",
+                    0
+                )
 
-                    <div class="market-bar">
+                html += f"""
 
-                        <div
-                            class="market-fill {classe_probabilita(prob)}"
-                            style="width:{prob}%"
-                        ></div>
+                        <div class="player">
 
-                    </div>
+                            <div class="player-name">
+                                ⚽ {nome}
+                            </div>
 
-                </div>
+                            <div class="small">
+                                Gol: {gol}
+                                |
+                                Assist: {assist}
+                                |
+                                Rigori: {rigori}
+                            </div>
 
-                <div class="market-value">
-                    {numero(prob, 0)}%
-                </div>
+                            <div class="small">
+                                Probabilità gol:
+                                <strong>
+                                    {numero(probabilita):.0f}%
+                                </strong>
+                            </div>
 
-            </div>
-            """
+                        </div>
 
-        # ----------------------------------------------------
-        # HTML DOPPIA CHANCE
-        # ----------------------------------------------------
-
-        html_doppia_chance = ""
-
-        for nome, prob in mercati_doppia_chance:
-
-            html_doppia_chance += f"""
-            <div class="market-row">
-
-                <div class="market-name">
-                    <strong>
-                        {nome}
-                    </strong>
-                </div>
-
-                <div class="market-bar-container">
-
-                    <div class="market-bar">
-
-                        <div
-                            class="market-fill {classe_probabilita(prob)}"
-                            style="width:{prob}%"
-                        ></div>
-
-                    </div>
-
-                </div>
-
-                <div class="market-value">
-                    {numero(prob, 0)}%
-                </div>
-
-            </div>
-            """
-
-        # ====================================================
-        # HTML CLASSIFICA VALUE INDEX
-        # ====================================================
-
-        classifica_html = ""
-
-        if isinstance(
-            classifica,
-            list
-        ):
-
-            for indice, elemento in enumerate(
-                classifica,
-                start=1
-            ):
-
-                try:
-
-                    mercato = elemento[0]
-                    valore = elemento[1]
-
-                except Exception:
-
-                    continue
-
-                classifica_html += f"""
-                <div class="ranking-row">
-
-                    <span>
-                        #{indice} {mercato}
-                    </span>
-
-                    <strong>
-                        VI {valore}
-                    </strong>
-
-                </div>
                 """
 
-        # ====================================================
-        # AI SCORE VISUALE
-        # ====================================================
+        else:
 
-        ai_score_visuale = max(
-            0,
-            min(
-                100,
-                ai_score_base
-            )
-        )
+            html += """
 
-        # ====================================================
-        # HTML FINALE
-        # ====================================================
+                        <p>
+                            Nessun marcatore disponibile.
+                        </p>
 
-        html = f"""
-<!DOCTYPE html>
+            """
 
-<html lang="it">
-
-<head>
-
-<meta charset="UTF-8">
-
-<meta
-    name="viewport"
-    content="width=device-width, initial-scale=1.0"
->
-
-<title>
-    CalcioAI - Analisi {casa} vs {trasferta}
-</title>
-
-<style>
-
-* {{
-    box-sizing: border-box;
-}}
-
-body {{
-
-    margin: 0;
-
-    padding: 20px;
-
-    background:
-        linear-gradient(
-            135deg,
-            #050505,
-            #101010
-        );
-
-    color: #ffffff;
-
-    font-family:
-        Arial,
-        Helvetica,
-        sans-serif;
-
-}}
-
-.container {{
-
-    max-width: 1000px;
-
-    margin: auto;
-
-}}
-
-.back-button {{
-
-    display: inline-block;
-
-    padding: 10px 18px;
-
-    margin-bottom: 20px;
-
-    background: #1c1c1c;
-
-    color: #ffffff;
-
-    text-decoration: none;
-
-    border-radius: 10px;
-
-    border: 1px solid #333;
-
-}}
-
-.back-button:hover {{
-
-    background: #292929;
-
-}}
-
-.header {{
-
-    background:
-        linear-gradient(
-            135deg,
-            #171717,
-            #0d0d0d
-        );
-
-    border: 1px solid #2d2d2d;
-
-    border-radius: 20px;
-
-    padding: 30px;
-
-    text-align: center;
-
-    margin-bottom: 20px;
-
-}}
-
-.header h1 {{
-
-    margin: 0 0 15px 0;
-
-    font-size: 30px;
-
-}}
-
-.match-info {{
-
-    color: #aaa;
-
-    font-size: 15px;
-
-}}
-
-.vs {{
-
-    margin: 12px 0;
-
-    font-size: 18px;
-
-    color: #777;
-
-}}
-
-.grid {{
-
-    display: grid;
-
-    grid-template-columns:
-        repeat(
-            auto-fit,
-            minmax(
-                280px,
-                1fr
-            )
-        );
-
-    gap: 18px;
-
-}}
-
-.card {{
-
-    background: #111111;
-
-    border: 1px solid #2b2b2b;
-
-    border-radius: 18px;
-
-    padding: 22px;
-
-    margin-bottom: 18px;
-
-}}
-
-.card h2 {{
-
-    margin-top: 0;
-
-    font-size: 19px;
-
-}}
-
-.prediction {{
-
-    text-align: center;
-
-}}
-
-.prediction-market {{
-
-    font-size: 30px;
-
-    font-weight: bold;
-
-    margin: 15px 0;
-
-}}
-
-.probability {{
-
-    font-size: 22px;
-
-    font-weight: bold;
-
-}}
-
-.value-index {{
-
-    font-size: 18px;
-
-    margin-top: 8px;
-
-    color: #cccccc;
-
-}}
-
-.risk {{
-
-    margin-top: 15px;
-
-    font-size: 18px;
-
-    font-weight: bold;
-
-}}
-
-.ai-score-number {{
-
-    font-size: 42px;
-
-    font-weight: bold;
-
-    text-align: center;
-
-    margin: 10px 0;
-
-}}
-
-.score-bar {{
-
-    width: 100%;
-
-    height: 14px;
-
-    background: #292929;
-
-    border-radius: 20px;
-
-    overflow: hidden;
-
-}}
-
-.score-fill {{
-
-    height: 100%;
-
-    width: {ai_score_visuale}%;
-
-    background:
-        linear-gradient(
-            90deg,
-            #555555,
-            #ffffff
-        );
-
-    border-radius: 20px;
-
-}}
-
-.stat-row {{
-
-    display: flex;
-
-    justify-content: space-between;
-
-    align-items: center;
-
-    padding: 9px 0;
-
-    border-bottom: 1px solid #222;
-
-}}
-
-.stat-row:last-child {{
-
-    border-bottom: none;
-
-}}
-
-.stat-label {{
-
-    color: #999;
-
-}}
-
-.stat-value {{
-
-    font-weight: bold;
-
-}}
-
-.form {{
-
-    font-size: 20px;
-
-    letter-spacing: 5px;
-
-    margin-top: 8px;
-
-}}
-
-.form-casa {{
-
-    color: #ffffff;
-
-}}
-
-.form-trasferta {{
-
-    color: #bbbbbb;
-
-}}
-
-.exact-results-card {{
-
-    background:
-        linear-gradient(
-            135deg,
-            #151515,
-            #0d0d0d
-        );
-
-    border: 1px solid #3a3a3a;
-
-    border-radius: 20px;
-
-    padding: 25px;
-
-    margin-bottom: 20px;
-
-}}
-
-.exact-results-title {{
-
-    text-align: center;
-
-    font-size: 23px;
-
-    font-weight: bold;
-
-    margin-bottom: 20px;
-
-}}
-
-.exact-results-subtitle {{
-
-    text-align: center;
-
-    color: #888;
-
-    font-size: 13px;
-
-    margin-top: -12px;
-
-    margin-bottom: 20px;
-
-}}
-
-.exact-score {{
-
-    display: flex;
-
-    align-items: center;
-
-    justify-content: space-between;
-
-    padding: 17px 18px;
-
-    margin: 10px 0;
-
-    background: #1a1a1a;
-
-    border: 1px solid #303030;
-
-    border-radius: 14px;
-
-}}
-
-.exact-position {{
-
-    width: 55px;
-
-    color: #888;
-
-    font-weight: bold;
-
-}}
-
-.exact-result {{
-
-    flex: 1;
-
-    text-align: center;
-
-    font-size: 25px;
-
-    font-weight: bold;
-
-}}
-
-.exact-probability {{
-
-    width: 75px;
-
-    text-align: right;
-
-    font-size: 20px;
-
-    font-weight: bold;
-
-}}
-
-.no-results {{
-
-    text-align: center;
-
-    color: #888;
-
-    padding: 20px;
-
-}}
-
-.markets-section {{
-
-    margin-bottom: 20px;
-
-}}
-
-.market-card {{
-
-    background: #111111;
-
-    border: 1px solid #2b2b2b;
-
-    border-radius: 18px;
-
-    padding: 22px;
-
-    margin-bottom: 18px;
-
-}}
-
-.market-card h3 {{
-
-    margin: 0 0 18px 0;
-
-    font-size: 18px;
-
-}}
-
-.market-row {{
-
-    display: flex;
-
-    align-items: center;
-
-    gap: 12px;
-
-    padding: 12px 0;
-
-    border-bottom: 1px solid #222;
-
-}}
-
-.market-row:last-child {{
-
-    border-bottom: none;
-
-}}
-
-.market-name {{
-
-    width: 105px;
-
-    min-width: 105px;
-
-}}
-
-.market-bar-container {{
-
-    flex: 1;
-
-}}
-
-.market-bar {{
-
-    height: 10px;
-
-    width: 100%;
-
-    background: #292929;
-
-    border-radius: 20px;
-
-    overflow: hidden;
-
-}}
-
-.market-fill {{
-
-    height: 100%;
-
-    border-radius: 20px;
-
-}}
-
-.prob-high {{
-
-    background: #ffffff;
-
-}}
-
-.prob-medium {{
-
-    background: #bbbbbb;
-
-}}
-
-.prob-low {{
-
-    background: #666666;
-
-}}
-
-.market-value {{
-
-    width: 55px;
-
-    min-width: 55px;
-
-    text-align: right;
-
-    font-weight: bold;
-
-}}
-
-.ranking-row {{
-
-    display: flex;
-
-    justify-content: space-between;
-
-    padding: 11px 0;
-
-    border-bottom: 1px solid #222;
-
-}}
-
-.ranking-row:last-child {{
-
-    border-bottom: none;
-
-}}
-
-.judgment {{
-
-    color: #cccccc;
-
-    line-height: 1.5;
-
-}}
-
-.small-note {{
-
-    color: #777;
-
-    font-size: 12px;
-
-    margin-top: 15px;
-
-    text-align: center;
-
-}}
-
-@media (max-width: 600px) {{
-
-    body {{
-        padding: 12px;
-    }}
-
-    .header {{
-        padding: 22px 15px;
-    }}
-
-    .header h1 {{
-        font-size: 24px;
-    }}
-
-    .market-row {{
-        gap: 8px;
-    }}
-
-    .market-name {{
-        width: 85px;
-        min-width: 85px;
-        font-size: 14px;
-    }}
-
-    .market-value {{
-        width: 50px;
-        min-width: 50px;
-    }}
-
-    .exact-result {{
-        font-size: 22px;
-    }}
-
-}}
-
-</style>
-
-</head>
-
-<body>
-
-<div class="container">
-
-    <!-- ==================================================
-         BACK
-         ================================================== -->
-
-    <a
-        href="/"
-        class="back-button"
-    >
-        ⬅ Torna alle partite
-    </a>
-
-
-    <!-- ==================================================
-         HEADER PARTITA
-         ================================================== -->
-
-    <div class="header">
-
-        <h1>
-
-            ⚽ {casa}
-
-            <br>
-
-            <span class="vs">
-                VS
-            </span>
-
-            <br>
-
-            {trasferta}
-
-        </h1>
-
-        <div class="match-info">
-
-            🏆 {lega}
-
-            &nbsp;&nbsp; | &nbsp;&nbsp;
-
-            ⏰ {ora}
-
-        </div>
-
-    </div>
-
-
-    <!-- ==================================================
-         PRONOSTICO + AI SCORE
-         ================================================== -->
-
-    <div class="grid">
-
-        <div class="card prediction">
-
-            <h2>
-                🎯 Pronostico AI
-            </h2>
-
-            <div class="prediction-market">
-
-                {pronostico}
-
-            </div>
-
-            <div class="probability">
-
-                Probabilità:
-                {numero(probabilita, 1)}%
-
-            </div>
-
-            <div class="value-index">
-
-                Value Index:
-
-                <strong>
-                    {numero(value_index, 1)}
-                </strong>
-
-            </div>
-
-            <div class="risk">
-
-                Rischio:
-                {rischio}
-
-            </div>
-
-        </div>
-
-
-        <div class="card">
-
-            <h2>
-                🤖 AI SCORE
-            </h2>
-
-            <div class="ai-score-number">
-
-                {numero(ai_score_base, 1)}
-
-            </div>
-
-            <div class="score-bar">
-
-                <div class="score-fill"></div>
-
-            </div>
-
-            <div class="small-note">
-
-                Score base del motore AI
-
-            </div>
-
-        </div>
-
-    </div>
-
-
-    <!-- ==================================================
-         RISULTATI ESATTI
-         ================================================== -->
-
-    <div class="exact-results-card">
-
-        <div class="exact-results-title">
-
-            🎯 RISULTATI ESATTI AI
-
-        </div>
-
-        <div class="exact-results-subtitle">
-
-            I 3 risultati con la probabilità stimata più alta
-
-        </div>
-
-        {risultati_html}
-
-        <div class="small-note">
-
-            Le percentuali sono probabilità individuali
-            dei singoli risultati.
-
-        </div>
-
-    </div>
-
-
-    <!-- ==================================================
-         MERCATI AI
-         ================================================== -->
-
-    <div class="markets-section">
-
-        <div class="market-card">
-
-            <h3>
-                ⚽ 1X2
-            </h3>
-
-            {html_1x2}
-
-        </div>
-
-
-        <div class="market-card">
-
-            <h3>
-                📈 Over / Under
-            </h3>
-
-            {html_over_under}
-
-        </div>
-
-
-        <div class="market-card">
-
-            <h3>
-                🎯 Goal / No Goal
-            </h3>
-
-            {html_goal}
-
-        </div>
-
-
-        <div class="market-card">
-
-            <h3>
-                🛡️ Doppia Chance
-            </h3>
-
-            {html_doppia_chance}
-
-        </div>
-
-    </div>
-
-
-    <!-- ==================================================
-         STATISTICHE SQUADRE
-         ================================================== -->
-
-    <div class="grid">
-
-        <div class="card">
-
-            <h2>
-                🏠 {casa}
-            </h2>
-
-            <div class="stat-row">
-
-                <span class="stat-label">
-                    Forma
-                </span>
-
-                <span class="stat-value form form-casa">
-                    {forma_casa}
-                </span>
-
-            </div>
-
-            <div class="stat-row">
-
-                <span class="stat-label">
-                    Gol fatti
-                </span>
-
-                <span class="stat-value">
-                    {gol_fatti_casa}
-                </span>
-
-            </div>
-
-            <div class="stat-row">
-
-                <span class="stat-label">
-                    Gol subiti
-                </span>
-
-                <span class="stat-value">
-                    {gol_subiti_casa}
-                </span>
-
-            </div>
-
-        </div>
-
-
-        <div class="card">
-
-            <h2>
-                ✈️ {trasferta}
-            </h2>
-
-            <div class="stat-row">
-
-                <span class="stat-label">
-                    Forma
-                </span>
-
-                <span class="stat-value form form-trasferta">
-                    {forma_trasferta}
-                </span>
-
-            </div>
-
-            <div class="stat-row">
-
-                <span class="stat-label">
-                    Gol fatti
-                </span>
-
-                <span class="stat-value">
-                    {gol_fatti_trasferta}
-                </span>
-
-            </div>
-
-            <div class="stat-row">
-
-                <span class="stat-label">
-                    Gol subiti
-                </span>
-
-                <span class="stat-value">
-                    {gol_subiti_trasferta}
-                </span>
-
-            </div>
-
-        </div>
-
-    </div>
-
-
-    <!-- ==================================================
-         INDICATORI
-         ================================================== -->
-
-    <div class="card">
-
-        <h2>
-            📊 Indicatori AI
-        </h2>
-
-        <div class="grid">
-
-            {
-                "".join(
-                    f'''
-                    <div class="stat-row">
-
-                        <span class="stat-label">
-                            {nome}
-                        </span>
-
-                        <span class="stat-value">
-                            {numero(value, 0)}%
-                        </span>
+        html += """
 
                     </div>
-                    '''
-                    for nome, value
-                    in indicatori_visuali
+
+
+                    <div>
+
+                        <h3>
+        """
+
+        html += trasferta
+
+        html += """
+
+                        </h3>
+
+        """
+
+        if marcatori_trasferta:
+
+            for giocatore in marcatori_trasferta:
+
+                nome = giocatore.get(
+                    "nome",
+                    "Giocatore"
                 )
-            }
+
+                gol = giocatore.get(
+                    "gol",
+                    0
+                )
+
+                assist = giocatore.get(
+                    "assist",
+                    0
+                )
+
+                rigori = giocatore.get(
+                    "rigori",
+                    0
+                )
+
+                probabilita = giocatore.get(
+                    "probabilita",
+                    0
+                )
+
+                html += f"""
+
+                        <div class="player">
+
+                            <div class="player-name">
+                                ⚽ {nome}
+                            </div>
+
+                            <div class="small">
+                                Gol: {gol}
+                                |
+                                Assist: {assist}
+                                |
+                                Rigori: {rigori}
+                            </div>
+
+                            <div class="small">
+                                Probabilità gol:
+                                <strong>
+                                    {numero(probabilita):.0f}%
+                                </strong>
+                            </div>
+
+                        </div>
+
+                """
+
+        else:
+
+            html += """
+
+                        <p>
+                            Nessun marcatore disponibile.
+                        </p>
+
+            """
+
+        html += """
+
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <div class="footer">
+
+                CalcioAI
+                —
+                Analisi automatizzata
+                Football-Data.org
+
+            </div>
 
         </div>
 
-    </div>
+        </body>
 
-
-    <!-- ==================================================
-         VALUE INDEX
-         ================================================== -->
-
-    <div class="card">
-
-        <h2>
-            🏆 Classifica Value Index
-        </h2>
-
-        {classifica_html}
-
-    </div>
-
-
-    <!-- ==================================================
-         GIUDIZIO
-         ================================================== -->
-
-    <div class="card">
-
-        <h2>
-            🧠 Giudizio AI
-        </h2>
-
-        <p class="judgment">
-
-            {giudizio}
-
-        </p>
-
-        <div class="stat-row">
-
-            <span class="stat-label">
-                Score finale
-            </span>
-
-            <span class="stat-value">
-                {numero(score_finale, 2)}
-            </span>
-
-        </div>
-
-        <div class="stat-row">
-
-            <span class="stat-label">
-                Affidabilità complessiva
-            </span>
-
-            <span class="stat-value">
-                {numero(affidabilita, 1)}%
-            </span>
-
-        </div>
-
-    </div>
-
-
-    <!-- ==================================================
-         FOOTER
-         ================================================== -->
-
-    <div class="small-note">
-
-        CalcioAI • Analisi statistica automatizzata
-
-    </div>
-
-</div>
-
-</body>
-
-</html>
+        </html>
         """
 
         return html
 
-    # ========================================================
-    # ERRORE
-    # ========================================================
-
     except Exception as e:
 
         print("")
-        print(
-            "❌ ERRORE ANALISI WEB:"
-        )
-
-        print(
-            repr(e)
-        )
+        print("❌ ERRORE ANALISI WEB")
+        print(e)
 
         return (
             f"""
-            <html>
+            <h1>Errore durante l'analisi</h1>
 
-            <head>
-
-                <title>
-                    Errore CalcioAI
-                </title>
-
-            </head>
-
-            <body
-                style="
-                    background:#111;
-                    color:white;
-                    font-family:Arial;
-                    padding:30px;
-                "
-            >
-
-                <h1>
-                    ❌ Errore durante l'analisi
-                </h1>
-
-                <p>
-                    {e}
-                </p>
-
-                <br>
-
-                <a
-                    href="/"
-                    style="color:white;"
-                >
-                    ⬅ Torna alle partite
-                </a>
-
-            </body>
-
-            </html>
+            <p>
+                {e}
+            </p>
             """,
             500
         )
@@ -1892,14 +1401,8 @@ body {{
 
 if __name__ == "__main__":
 
-    print("")
-    print("🌐 CalcioAI Web App avviata")
-    print("🔗 http://127.0.0.1:5000")
-    print("")
-
     app.run(
         host="127.0.0.1",
         port=5000,
-        debug=False,
-        use_reloader=False
+        debug=True
     )

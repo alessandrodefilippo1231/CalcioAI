@@ -1,18 +1,20 @@
 import requests
 from config import FOOTBALL_API_KEY
 
-URL = "https://v3.football.api-sports.io/fixtures"
+URL = "https://api.football-data.org/v4/matches"
 
 HEADERS = {
-    "x-apisports-key": FOOTBALL_API_KEY
+    "X-Auth-Token": FOOTBALL_API_KEY
 }
 
 
 def partite_di_oggi():
-    params = {
-        "live": "all"
-    }
+    risposta = requests.get(
+        URL,
+        headers=HEADERS,
+        timeout=15
+    )
 
-    risposta = requests.get(URL, headers=HEADERS, params=params)
+    risposta.raise_for_status()
 
     return risposta.json()

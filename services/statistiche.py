@@ -6,21 +6,46 @@ from services.cache_statistiche import (
 )
 
 import requests
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 
 # ============================================================
 # CONFIGURAZIONE
 # ============================================================
 
-# NON usare automaticamente stagioni vecchie.
-# 2024 viene utilizzata solo come ultima possibilità
-# per verificare se esistono dati API.
-STAGIONI_DISPONIBILI = [
-    2026,
-    2025,
-    2024
-]
+BASE_URL = "https://api.football-data.org/v4"
+
+# Numero massimo di partite utilizzate per la forma
+NUMERO_ULTIME_PARTITE = 5
+
+
+# ============================================================
+# STATISTICHE VUOTE
+# ============================================================
+
+def statistiche_vuote():
+
+    return {
+
+        "forma": "N/D",
+
+        "gol_fatti": 0,
+
+        "gol_subiti": 0,
+
+        "media_gol_fatti": 0,
+
+        "media_gol_subiti": 0,
+
+        "over15": 0,
+
+        "over25": 0,
+
+        "golgol": 0,
+
+        "partite_analizzate": 0
+
+    }
 
 
 # ============================================================
@@ -47,71 +72,115 @@ def ultime_partite(team_id):
     # ========================================================
 
     headers = {
-        "x-apisports-key": FOOTBALL_API_KEY
+        "X-Auth-Token": FOOTBALL_API_KEY
     }
 
 
-    partite = []
+    # ========================================================
+    # DATA DI RICERCA
+    # ========================================================
+
+    oggi = datetime.now(timezone.utc)
+
+    data_fine = oggi.strftime("%Y-%m-%d")
+
+    # Cerchiamo abbastanza indietro per trovare
+    # le ultime partite concluse.
+    data_inizio = (
+        oggi - timedelta(days=120)
+    ).strftime("%Y-%m-%d")
 
 
     # ========================================================
-    # RICERCA STAGIONE
+    # URL FOOTBALL-DATA.ORG
     # ========================================================
 
-    for stagione in STAGIONI_DISPONIBILI:
+    url = (
+        f"{BASE_URL}/teams/"
+        f"{team_id}/matches"
+    )
 
-        url = (
-            "https://v3.football.api-sports.io/fixtures"
-            f"?team={team_id}"
-            f"&season={stagione}"
+
+    params = {
+
+        "dateFrom": data_inizio,
+
+        "dateTo": data_fine,
+
+        "status": "FINISHED",
+
+        "limit": 100
+
+    }
+
+
+    try:
+
+        print(
+            "🌐 RICERCA ULTIME PARTITE"
+        )
+
+        print(
+            "TEAM ID:",
+            team_id
+        )
+
+        print(
+            "DAL:",
+            data_inizio
+        )
+
+        print(
+            "AL:",
+            data_fine
         )
 
 
-        try:
+        response = requests.get(
 
-            response = requests.get(
-                url,
-                headers=headers,
-                timeout=15
-            )
+            url,
 
+            headers=headers,
 
-            dati = response.json()
+            params=params,
 
+            timeout=15
 
-            risultati = dati.get(
-                "response",
-                []
-            )
+        )
 
 
-            print(
-                "STAGIONE:",
-                stagione,
-                "RISULTATI:",
-                len(risultati)
-            )
+        print(
+            "📡 STATUS API:",
+            response.status_code
+        )
 
 
-            if risultati:
-
-                partite = risultati
-
-                print(
-                    "✅ DATI TROVATI STAGIONE:",
-                    stagione
-                )
-
-                break
+        response.raise_for_status()
 
 
-        except Exception as e:
+        dati = response.json()
 
-            print(
-                "❌ ERRORE STAGIONE:",
-                stagione,
-                e
-            )
+
+        partite = dati.get(
+            "matches",
+            []
+        )
+
+
+        print(
+            "📊 RISULTATI API:",
+            len(partite)
+        )
+
+
+    except Exception as e:
+
+        print(
+            "❌ ERRORE RICERCA STATISTICHE:",
+            e
+        )
+
+        return statistiche_vuote()
 
 
     # ========================================================
@@ -124,28 +193,7 @@ def ultime_partite(team_id):
             "⚠️ NESSUNA PARTITA DISPONIBILE"
         )
 
-
-        return {
-
-            "forma": "N/D",
-
-            "gol_fatti": 0,
-
-            "gol_subiti": 0,
-
-            "media_gol_fatti": 0,
-
-            "media_gol_subiti": 0,
-
-            "over15": 0,
-
-            "over25": 0,
-
-            "golgol": 0,
-
-            "partite_analizzate": 0
-
-        }
+        return statistiche_vuote()
 
 
     # ========================================================
@@ -153,9 +201,16 @@ def ultime_partite(team_id):
     # ========================================================
 
     partite = sorted(
+
         partite,
-        key=lambda x: x["fixture"]["date"],
+
+        key=lambda x: x.get(
+            "utcDate",
+            ""
+        ),
+
         reverse=True
+
     )
 
 
@@ -168,26 +223,38 @@ def ultime_partite(team_id):
 
     for partita in partite:
 
-        gol_home = partita["goals"]["home"]
+        status = partita.get(
+            "status"
+        )
 
-        gol_away = partita["goals"]["away"]
 
-
-        if gol_home is None or gol_away is None:
+        if status != "FINISHED":
 
             continue
 
 
-        # Controlliamo che la partita sia realmente conclusa
+        score = partita.get(
+            "score",
+            {}
+        )
 
-        status = partita["fixture"]["status"]["short"]
+
+        full_time = score.get(
+            "fullTime",
+            {}
+        )
 
 
-        if status not in [
-            "FT",
-            "AET",
-            "PEN"
-        ]:
+        gol_home = full_time.get(
+            "home"
+        )
+
+        gol_away = full_time.get(
+            "away"
+        )
+
+
+        if gol_home is None or gol_away is None:
 
             continue
 
@@ -201,7 +268,9 @@ def ultime_partite(team_id):
     # ULTIME 5
     # ========================================================
 
-    ultime = partite_valide_lista[:5]
+    ultime = partite_valide_lista[
+        :NUMERO_ULTIME_PARTITE
+    ]
 
 
     if not ultime:
@@ -210,28 +279,13 @@ def ultime_partite(team_id):
             "⚠️ NESSUNA PARTITA CON RISULTATO VALIDO"
         )
 
+        return statistiche_vuote()
 
-        return {
 
-            "forma": "N/D",
-
-            "gol_fatti": 0,
-
-            "gol_subiti": 0,
-
-            "media_gol_fatti": 0,
-
-            "media_gol_subiti": 0,
-
-            "over15": 0,
-
-            "over25": 0,
-
-            "golgol": 0,
-
-            "partite_analizzate": 0
-
-        }
+    print(
+        "✅ ULTIME PARTITE ANALIZZATE:",
+        len(ultime)
+    )
 
 
     # ========================================================
@@ -266,13 +320,50 @@ def ultime_partite(team_id):
 
     for partita in ultime:
 
+        home_team = partita.get(
+            "homeTeam",
+            {}
+        )
 
-        gol_home = partita["goals"]["home"]
+        away_team = partita.get(
+            "awayTeam",
+            {}
+        )
 
-        gol_away = partita["goals"]["away"]
+
+        home_id = home_team.get(
+            "id"
+        )
+
+        away_id = away_team.get(
+            "id"
+        )
 
 
-        home_id = partita["teams"]["home"]["id"]
+        score = partita.get(
+            "score",
+            {}
+        )
+
+
+        full_time = score.get(
+            "fullTime",
+            {}
+        )
+
+
+        gol_home = full_time.get(
+            "home"
+        )
+
+        gol_away = full_time.get(
+            "away"
+        )
+
+
+        if gol_home is None or gol_away is None:
+
+            continue
 
 
         # ====================================================
@@ -305,7 +396,7 @@ def ultime_partite(team_id):
         # SQUADRA TRASFERTA
         # ====================================================
 
-        else:
+        elif away_id == team_id:
 
             fatti = gol_away
 
@@ -327,6 +418,11 @@ def ultime_partite(team_id):
                 sconfitte += 1
 
 
+        else:
+
+            continue
+
+
         # ====================================================
         # GOL
         # ====================================================
@@ -337,8 +433,11 @@ def ultime_partite(team_id):
 
 
         totale_gol = (
+
             fatti +
+
             subiti
+
         )
 
 
@@ -365,9 +464,13 @@ def ultime_partite(team_id):
         # ====================================================
 
         if (
+
             fatti > 0
+
             and
+
             subiti > 0
+
         ):
 
             golgol += 1
@@ -377,61 +480,81 @@ def ultime_partite(team_id):
 
 
     # ========================================================
+    # CONTROLLO FINALE
+    # ========================================================
+
+    if partite_valide == 0:
+
+        print(
+            "⚠️ NESSUNA PARTITA VALIDA PER IL TEAM"
+        )
+
+        return statistiche_vuote()
+
+
+    # ========================================================
     # CALCOLO MEDIE
     # ========================================================
 
-    if partite_valide > 0:
+    media_gol_fatti = round(
+
+        gol_fatti /
+
+        partite_valide,
+
+        2
+
+    )
 
 
-        media_gol_fatti = round(
-            gol_fatti /
-            partite_valide,
-            2
-        )
+    media_gol_subiti = round(
+
+        gol_subiti /
+
+        partite_valide,
+
+        2
+
+    )
 
 
-        media_gol_subiti = round(
-            gol_subiti /
-            partite_valide,
-            2
-        )
+    percentuale_over15 = round(
+
+        (
+
+            over15 /
+
+            partite_valide
+
+        ) * 100
+
+    )
 
 
-        percentuale_over15 = round(
-            (
-                over15 /
-                partite_valide
-            ) * 100
-        )
+    percentuale_over25 = round(
+
+        (
+
+            over25 /
+
+            partite_valide
+
+        ) * 100
+
+    )
 
 
-        percentuale_over25 = round(
-            (
-                over25 /
-                partite_valide
-            ) * 100
-        )
+    percentuale_golgol = round(
 
+        (
 
-        percentuale_golgol = round(
-            (
-                golgol /
-                partite_valide
-            ) * 100
-        )
+            golgol /
 
+            partite_valide
 
-    else:
+        ) * 100
 
-        media_gol_fatti = 0
-
-        media_gol_subiti = 0
-
-        percentuale_over15 = 0
-
-        percentuale_over25 = 0
-
-        percentuale_golgol = 0
+    )
 
 
     # ========================================================
@@ -495,8 +618,11 @@ def ultime_partite(team_id):
     # ========================================================
 
     salva_statistiche(
+
         team_id,
+
         statistiche
+
     )
 
 

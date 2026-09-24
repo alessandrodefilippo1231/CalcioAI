@@ -1,857 +1,481 @@
-import os
 import json
-import requests
-
-from datetime import datetime, timezone
+import os
+from datetime import datetime
 from zoneinfo import ZoneInfo
 
-from dotenv import load_dotenv
+import requests
+
+from config import FOOTBALL_API_KEY
 
 
-# ============================================================
-# CONFIGURAZIONE
-# ============================================================
+URL = "https://api.football-data.org/v4/matches"
 
-load_dotenv()
+CACHE_FILE = "cache/partite_oggi.json"
 
-FOOTBALL_API_KEY = os.getenv(
-    "FOOTBALL_API_KEY"
-)
-
-API_URL = (
-    "https://v3.football.api-sports.io/fixtures"
-)
-
-CACHE_FILE = (
-    "cache/partite_oggi.json"
-)
-
-# Fuso orario utilizzato da CalcioAI
-TIMEZONE_ITALIA = ZoneInfo(
-    "Europe/Rome"
-)
-
-
-# ============================================================
-# LEAGUE CONSENTITE
-# ============================================================
-
-LEAGUE_CONSENTITE = {
-
-    # Italia
-    "Italy": [
-        "Serie A",
-        "Serie B"
-    ],
-
-    # Inghilterra
-    "England": [
-        "Premier League",
-        "Championship"
-    ],
-
-    # Spagna
-    "Spain": [
-        "La Liga",
-        "Segunda Division"
-    ],
-
-    # Germania
-    "Germany": [
-        "Bundesliga",
-        "2. Bundesliga"
-    ],
-
-    # Francia
-    "France": [
-        "Ligue 1",
-        "Ligue 2"
-    ],
-
-    # Olanda
-    "Netherlands": [
-        "Eredivisie"
-    ],
-
-    # Portogallo
-    "Portugal": [
-        "Primeira Liga"
-    ],
-
-    # Belgio
-    "Belgium": [
-        "Jupiler Pro League"
-    ],
-
-    # Turchia
-    "Turkey": [
-        "Super Lig"
-    ],
-
-    # Argentina
-    "Argentina": [
-        "Liga Profesional Argentina"
-    ],
-
-    # Brasile
-    "Brazil": [
-        "Serie A",
-        "Serie B"
-    ],
-
-    # Messico
-    "Mexico": [
-        "Liga MX"
-    ],
-
-    # Colombia
-    "Colombia": [
-        "Primera A"
-    ],
-
-    # Ecuador
-    "Ecuador": [
-        "Liga Pro"
-    ],
-
-    # USA
-    "USA": [
-        "Major League Soccer"
-    ]
+HEADERS = {
+    "X-Auth-Token": FOOTBALL_API_KEY
 }
 
 
 # ============================================================
-# PAROLE DA ESCLUDERE
+# COMPETIZIONI SUPPORTATE
 # ============================================================
 
-PAROLE_ESCLUSE = [
-
-    "Women",
-    "W",
-    "U19",
-    "U20",
-    "U21",
-    "U23",
-    "Youth",
-    "Reserve",
-    "Reserves",
-    "II",
-    "Friendly",
-    "Friendlies",
-    "Club Friendlies",
-    "Amateur"
-]
+COMPETIZIONI = {
+    "SA": {
+        "lega": "Serie A",
+        "paese": "Italy",
+        "priority": 1,
+    },
+    "PL": {
+        "lega": "Premier League",
+        "paese": "England",
+        "priority": 3,
+    },
+    "BL1": {
+        "lega": "Bundesliga",
+        "paese": "Germany",
+        "priority": 7,
+    },
+    "PD": {
+        "lega": "La Liga",
+        "paese": "Spain",
+        "priority": 5,
+    },
+    "FL1": {
+        "lega": "Ligue 1",
+        "paese": "France",
+        "priority": 9,
+    },
+    "DED": {
+        "lega": "Eredivisie",
+        "paese": "Netherlands",
+        "priority": 20,
+    },
+    "PPL": {
+        "lega": "Primeira Liga",
+        "paese": "Portugal",
+        "priority": 20,
+    },
+    "ELC": {
+        "lega": "Championship",
+        "paese": "England",
+        "priority": 4,
+    },
+    "BSA": {
+        "lega": "Serie A Brasile",
+        "paese": "Brazil",
+        "priority": 20,
+    },
+}
 
 
 # ============================================================
-# CREA CARTELLA CACHE
-# ============================================================
-
-def crea_cache():
-
-    cartella = os.path.dirname(
-        CACHE_FILE
-    )
-
-    if cartella:
-
-        os.makedirs(
-            cartella,
-            exist_ok=True
-        )
-
-
-# ============================================================
-# DATA ODIERNA ITALIANA
+# DATA ITALIANA
 # ============================================================
 
 def data_oggi_italia():
-
     return datetime.now(
-        TIMEZONE_ITALIA
-    ).strftime(
-        "%Y-%m-%d"
-    )
+        ZoneInfo("Europe/Rome")
+    ).strftime("%Y-%m-%d")
 
 
 # ============================================================
-# CONTROLLO PARTITA VALIDA
+# CACHE
+# ============================================================
+
+def carica_cache():
+    if not os.path.exists(CACHE_FILE):
+        return None
+
+    try:
+        with open(
+            CACHE_FILE,
+            "r",
+            encoding="utf-8"
+        ) as f:
+            dati = json.load(f)
+
+        if not isinstance(dati, dict):
+            return None
+
+        if dati.get("data") != data_oggi_italia():
+            return None
+
+        partite = dati.get(
+            "partite",
+            []
+        )
+
+        if not partite:
+            return None
+
+        return partite
+
+    except Exception:
+        return None
+
+
+def salva_cache(partite):
+    os.makedirs(
+        os.path.dirname(CACHE_FILE),
+        exist_ok=True
+    )
+
+    dati = {
+        "data": data_oggi_italia(),
+        "partite": partite
+    }
+
+    with open(
+        CACHE_FILE,
+        "w",
+        encoding="utf-8"
+    ) as f:
+        json.dump(
+            dati,
+            f,
+            ensure_ascii=False,
+            indent=2
+        )
+
+
+# ============================================================
+# FILTRO PARTITE
 # ============================================================
 
 def partita_valida(partita):
-
-    fixture = partita.get(
-        "fixture",
+    competition = partita.get(
+        "competition",
         {}
     )
 
-    league = partita.get(
-        "league",
-        {}
-    )
-
-    teams = partita.get(
-        "teams",
-        {}
-    )
-
-    casa = teams.get(
-        "home",
-        {}
-    ).get(
-        "name",
+    code = competition.get(
+        "code",
         ""
     )
 
-    trasferta = teams.get(
-        "away",
-        {}
-    ).get(
-        "name",
-        ""
-    )
-
-    nome_campionato = league.get(
-        "name",
-        ""
-    )
-
-    paese = league.get(
-        "country",
-        ""
-    )
-
-    # --------------------------------------------------------
-    # CONTROLLO CAMPIONATO
-    # --------------------------------------------------------
-
-    campionati_paese = (
-        LEAGUE_CONSENTITE.get(
-            paese,
-            []
-        )
-    )
-
-    if nome_campionato not in campionati_paese:
-
+    if code not in COMPETIZIONI:
         return False
 
-    # --------------------------------------------------------
-    # CONTROLLO NOMI ESCLUSI
-    # --------------------------------------------------------
+    nome_competizione = competition.get(
+        "name",
+        ""
+    ).lower()
+
+    home_team = partita.get(
+        "homeTeam",
+        {}
+    )
+
+    away_team = partita.get(
+        "awayTeam",
+        {}
+    )
+
+    casa = home_team.get(
+        "name",
+        ""
+    )
+
+    trasferta = away_team.get(
+        "name",
+        ""
+    )
 
     testo = (
-        f"{nome_campionato} "
+        f"{nome_competizione} "
         f"{casa} "
         f"{trasferta}"
     ).lower()
 
-    for parola in PAROLE_ESCLUSE:
+    esclusioni = [
+        "women",
+        "woman",
+        "female",
+        " w ",
+        "u19",
+        "u20",
+        "u21",
+        "u23",
+        "youth",
+        "reserve",
+        "reserves",
+        " ii ",
+        "friendly",
+        "friendlies",
+        "club friendly",
+        "amateur",
+    ]
 
-        if parola.lower() in testo:
-
+    for parola in esclusioni:
+        if parola in testo:
             return False
-
-    # --------------------------------------------------------
-    # CONTROLLO SQUADRE
-    # --------------------------------------------------------
-
-    if not casa or not trasferta:
-
-        return False
-
-    # --------------------------------------------------------
-    # CONTROLLO DATA
-    # --------------------------------------------------------
-
-    data_partita = fixture.get(
-        "date"
-    )
-
-    if not data_partita:
-
-        return False
 
     return True
 
 
 # ============================================================
-# PRIORITÀ CAMPIONATO
+# CONVERSIONE FOOTBALL-DATA → FORMATO CALCIOAI
 # ============================================================
 
-def priorita_campionato(
-    paese,
-    campionato
-):
-
-    priorita = {
-
-        "Serie A": 10,
-        "Premier League": 10,
-        "La Liga": 10,
-        "Bundesliga": 10,
-        "Ligue 1": 10,
-
-        "Serie B": 8,
-        "Championship": 8,
-        "Segunda Division": 8,
-        "2. Bundesliga": 8,
-        "Ligue 2": 8,
-
-        "Eredivisie": 7,
-        "Primeira Liga": 7,
-        "Jupiler Pro League": 7,
-        "Super Lig": 7,
-
-        "Liga Profesional Argentina": 7,
-        "Serie A Brazil": 7,
-        "Serie B Brazil": 6,
-
-        "Liga MX": 6,
-        "Primera A": 6,
-        "Liga Pro": 6,
-        "Major League Soccer": 6
-    }
-
-    return priorita.get(
-        campionato,
-        5
+def converti_partita(partita):
+    competition = partita.get(
+        "competition",
+        {}
     )
 
+    code = competition.get(
+        "code",
+        ""
+    )
 
-# ============================================================
-# SALVA CACHE
-# ============================================================
+    info_competizione = COMPETIZIONI.get(
+        code,
+        {}
+    )
 
-def salva_cache(
-    partite,
-    data_cache=None
-):
+    home_team = partita.get(
+        "homeTeam",
+        {}
+    )
 
-    try:
+    away_team = partita.get(
+        "awayTeam",
+        {}
+    )
 
-        crea_cache()
-
-        if data_cache is None:
-
-            data_cache = data_oggi_italia()
-
-        # ----------------------------------------------------
-        # NUOVA STRUTTURA CACHE
-        # ----------------------------------------------------
-
-        dati_cache = {
-
-            "data": data_cache,
-
-            "partite": partite
-
-        }
-
-        with open(
-            CACHE_FILE,
-            "w",
-            encoding="utf-8"
-        ) as file:
-
-            json.dump(
-                dati_cache,
-                file,
-                ensure_ascii=False,
-                indent=4
-            )
-
-        print(
-            "💾 CACHE PARTITE SALVATA:",
-            len(partite),
-            "| DATA:",
-            data_cache
-        )
-
-    except Exception as e:
-
-        print(
-            "❌ ERRORE SALVATAGGIO CACHE:",
-            e
-        )
-
-
-# ============================================================
-# CARICA CACHE
-# ============================================================
-
-def carica_cache():
+    utc_date = partita.get(
+        "utcDate",
+        ""
+    )
 
     try:
-
-        if not os.path.exists(
-            CACHE_FILE
-        ):
-
-            return None
-
-        with open(
-            CACHE_FILE,
-            "r",
-            encoding="utf-8"
-        ) as file:
-
-            dati = json.load(
-                file
+        dt_utc = datetime.fromisoformat(
+            utc_date.replace(
+                "Z",
+                "+00:00"
             )
-
-        # ====================================================
-        # NUOVA CACHE
-        # ====================================================
-
-        if isinstance(
-            dati,
-            dict
-        ):
-
-            data_cache = dati.get(
-                "data"
-            )
-
-            partite = dati.get(
-                "partite"
-            )
-
-            if not isinstance(
-                partite,
-                list
-            ):
-
-                print(
-                    "⚠️ CACHE NON VALIDA"
-                )
-
-                return None
-
-            oggi = data_oggi_italia()
-
-            if data_cache != oggi:
-
-                print(
-                    "🗑️ CACHE VECCHIA:",
-                    data_cache,
-                    "| OGGI:",
-                    oggi
-                )
-
-                return None
-
-            print(
-                "📦 CACHE VALIDA:",
-                len(partite),
-                "| DATA:",
-                data_cache
-            )
-
-            return partite
-
-        # ====================================================
-        # VECCHIA CACHE LEGACY
-        # ====================================================
-        #
-        # Se il vecchio file contiene direttamente una lista,
-        # NON la utilizziamo.
-        #
-        # In questo modo evitiamo di utilizzare accidentalmente
-        # la cache di ieri.
-        # ====================================================
-
-        if isinstance(
-            dati,
-            list
-        ):
-
-            print(
-                "⚠️ CACHE LEGACY RILEVATA"
-            )
-
-            print(
-                "🔄 CACHE VECCHIA IGNORATA"
-            )
-
-            return None
-
-        return None
-
-    except Exception as e:
-
-        print(
-            "⚠️ ERRORE LETTURA CACHE:",
-            e
         )
 
-        return None
+        dt_italia = dt_utc.astimezone(
+            ZoneInfo("Europe/Rome")
+        )
+
+        ora = dt_italia.strftime(
+            "%H:%M"
+        )
+
+        data_italia = dt_italia.strftime(
+            "%Y-%m-%d"
+        )
+
+    except Exception:
+        ora = ""
+        data_italia = ""
+
+    return {
+        "id": partita.get("id"),
+
+        "casa": home_team.get(
+            "name",
+            ""
+        ),
+
+        "trasferta": away_team.get(
+            "name",
+            ""
+        ),
+
+        "home_id": home_team.get(
+            "id"
+        ),
+
+        "away_id": away_team.get(
+            "id"
+        ),
+
+        "lega": info_competizione.get(
+            "lega",
+            competition.get(
+                "name",
+                ""
+            )
+        ),
+
+        "paese": info_competizione.get(
+            "paese",
+            ""
+        ),
+
+        "ora": ora,
+
+        "data": data_italia,
+
+        "date": utc_date,
+
+        "priority": info_competizione.get(
+            "priority",
+            20
+        ),
+    }
 
 
 # ============================================================
-# PARTITE DI OGGI
+# RECUPERO PARTITE DA FOOTBALL-DATA.ORG
+# ============================================================
+
+def recupera_partite(data_richiesta):
+    print(
+        f"🌐 RICHIESTA FOOTBALL-DATA.ORG: "
+        f"{data_richiesta}"
+    )
+
+    try:
+        risposta = requests.get(
+            URL,
+            headers=HEADERS,
+            params={
+                "dateFrom": data_richiesta,
+                "dateTo": data_richiesta,
+            },
+            timeout=15
+        )
+
+        print(
+            f"📡 STATUS API: "
+            f"{risposta.status_code}"
+        )
+
+        risposta.raise_for_status()
+
+        dati = risposta.json()
+
+        partite = dati.get(
+            "matches",
+            []
+        )
+
+        print(
+            f"📊 RISULTATI API: "
+            f"{len(partite)}"
+        )
+
+        return partite
+
+    except requests.RequestException as e:
+        print(
+            f"❌ ERRORE FOOTBALL-DATA.ORG: {e}"
+        )
+        return []
+
+    except Exception as e:
+        print(
+            f"❌ ERRORE GENERICO API: {e}"
+        )
+        return []
+
+
+# ============================================================
+# FUNZIONE PRINCIPALE
 # ============================================================
 
 def partite_oggi(
-    forza_aggiornamento=False
+    forza_aggiornamento=False,
+    data_test=None
 ):
+    """
+    Recupera le partite del giorno.
 
-    oggi = data_oggi_italia()
+    data_test permette di utilizzare
+    una data specifica per i test.
+    """
 
-    print(
-        "📅 DATA CALCIOAI:",
-        oggi
+    data_richiesta = (
+        data_test
+        if data_test
+        else data_oggi_italia()
     )
 
-    # ========================================================
-    # CACHE
-    # ========================================================
+    print(
+        "\n🌐 WEB APP - CARICAMENTO PARTITE"
+    )
 
-    if not forza_aggiornamento:
+    print(
+        f"📅 DATA CALCIOAI: "
+        f"{data_richiesta}"
+    )
 
+    usa_cache = (
+        data_test is None
+        and not forza_aggiornamento
+    )
+
+    if usa_cache:
         cache = carica_cache()
 
-        if cache is not None:
-
+        if cache:
             print(
-                "📦 USO CACHE PARTITE:",
-                len(cache)
-            )
-
-            print(
-                "✅ USO CACHE DEL GIORNO:",
-                oggi
+                f"💾 CACHE UTILIZZATA: "
+                f"{len(cache)} partite"
             )
 
             return cache
 
-    else:
-
-        print(
-            "🔄 AGGIORNAMENTO FORZATO PARTITE"
-        )
-
-    # ========================================================
-    # API KEY
-    # ========================================================
-
-    if not FOOTBALL_API_KEY:
-
-        print(
-            "❌ FOOTBALL_API_KEY NON TROVATA"
-        )
-
-        return []
-
-    # ========================================================
-    # RICHIESTA API
-    # ========================================================
-
-    headers = {
-
-        "x-apisports-key":
-            FOOTBALL_API_KEY
-
-    }
-
-    # --------------------------------------------------------
-    # IMPORTANTE:
-    # L'API-Football lavora con la data richiesta.
-    # Utilizziamo la data italiana del giorno corrente.
-    # --------------------------------------------------------
-
-    params = {
-
-        "date": oggi
-
-    }
-
-    print(
-        "🌐 RICHIESTA API PARTITE:",
-        oggi
+    partite_raw = recupera_partite(
+        data_richiesta
     )
 
-    try:
+    partite_filtrate = []
 
-        response = requests.get(
+    for partita in partite_raw:
 
-            API_URL,
+        if not partita_valida(partita):
+            continue
 
-            headers=headers,
-
-            params=params,
-
-            timeout=15
-
+        partita_convertita = converti_partita(
+            partita
         )
 
-    except Exception as e:
-
-        print(
-            "❌ ERRORE API PARTITE:",
-            e
+        partite_filtrate.append(
+            partita_convertita
         )
 
-        return []
-
-    # ========================================================
-    # STATUS HTTP
-    # ========================================================
-
-    if response.status_code != 200:
-
-        print(
-            "❌ API ERROR:",
-            response.status_code
-        )
-
-        try:
-
-            print(
-                response.text
-            )
-
-        except Exception:
-
-            pass
-
-        return []
-
-    # ========================================================
-    # JSON
-    # ========================================================
-
-    try:
-
-        dati = response.json()
-
-    except Exception as e:
-
-        print(
-            "❌ ERRORE JSON:",
-            e
-        )
-
-        return []
-
-    risultati = dati.get(
-        "response",
-        []
-    )
-
-    print(
-        "📊 RISULTATI API:",
-        len(risultati)
-    )
-
-    # ========================================================
-    # FILTRAGGIO
-    # ========================================================
-
-    partite = []
-
-    for partita in risultati:
-
-        try:
-
-            if not partita_valida(
-                partita
-            ):
-
-                continue
-
-            fixture = partita.get(
-                "fixture",
-                {}
-            )
-
-            league = partita.get(
-                "league",
-                {}
-            )
-
-            teams = partita.get(
-                "teams",
-                {}
-            )
-
-            fixture_id = fixture.get(
-                "id"
-            )
-
-            data_completa = fixture.get(
-                "date"
-            )
-
-            casa = teams.get(
-                "home",
-                {}
-            ).get(
-                "name"
-            )
-
-            trasferta = teams.get(
-                "away",
-                {}
-            ).get(
-                "name"
-            )
-
-            home_id = teams.get(
-                "home",
-                {}
-            ).get(
-                "id"
-            )
-
-            away_id = teams.get(
-                "away",
-                {}
-            ).get(
-                "id"
-            )
-
-            campionato = league.get(
-                "name"
-            )
-
-            paese = league.get(
-                "country"
-            )
-
-            # ------------------------------------------------
-            # ORA
-            # ------------------------------------------------
-
-            ora = ""
-
-            if data_completa:
-
-                try:
-
-                    # Convertiamo l'orario UTC
-                    # nell'orario italiano.
-
-                    data_utc = datetime.fromisoformat(
-                        data_completa.replace(
-                            "Z",
-                            "+00:00"
-                        )
-                    )
-
-                    data_italia = (
-                        data_utc.astimezone(
-                            TIMEZONE_ITALIA
-                        )
-                    )
-
-                    ora = data_italia.strftime(
-                        "%H:%M"
-                    )
-
-                except Exception:
-
-                    try:
-
-                        ora = data_completa[11:16]
-
-                    except Exception:
-
-                        ora = ""
-
-            # ------------------------------------------------
-            # PRIORITÀ
-            # ------------------------------------------------
-
-            priority = priorita_campionato(
-
-                paese,
-
-                campionato
-
-            )
-
-            # =================================================
-            # STRUTTURA
-            # =================================================
-
-            partita_filtrata = {
-
-                # ID
-                "id": fixture_id,
-
-                # SQUADRE
-                "casa": casa,
-                "trasferta": trasferta,
-
-                # ID SQUADRE
-                "home_id": home_id,
-                "away_id": away_id,
-
-                # CAMPIONATO
-                "lega": campionato,
-                "paese": paese,
-
-                # ORARIO DISPLAY
-                "ora": ora,
-
-                # DATA COMPLETA
-                "data": data_completa,
-
-                # COMPATIBILITÀ
-                "date": data_completa,
-
-                # PRIORITÀ
-                "priority": priority
-
-            }
-
-            partite.append(
-                partita_filtrata
-            )
-
-        except Exception as e:
-
-            print(
-                "⚠️ ERRORE ELABORAZIONE PARTITA:",
-                e
-            )
-
-    # ========================================================
-    # ORDINAMENTO
-    # ========================================================
-
-    partite.sort(
-
+    # Ordina per priorità del campionato
+    # e successivamente per orario
+    partite_filtrate.sort(
         key=lambda x: (
-
-            -x.get(
-                "priority",
-                0
-            ),
-
-            x.get(
-                "data",
-                ""
-            )
-
+            x.get("priority", 20),
+            x.get("ora", "99:99")
         )
-
     )
 
     print(
-        "✅ PARTITE FILTRATE:",
-        len(partite)
+        f"✅ PARTITE FILTRATE: "
+        f"{len(partite_filtrate)}"
     )
 
-    # ========================================================
-    # CACHE
-    # ========================================================
+    if (
+        data_test is None
+        and partite_filtrate
+    ):
+        salva_cache(
+            partite_filtrate
+        )
 
-    salva_cache(
-        partite,
-        oggi
+        print(
+            "💾 CACHE AGGIORNATA"
+        )
+
+    elif not partite_filtrate:
+        print(
+            "⚠️ NESSUNA PARTITA: "
+            "cache non aggiornata"
+        )
+
+    print(
+        f"⚽ Partite trovate: "
+        f"{len(partite_filtrate)}"
     )
 
-    return partite
+    return partite_filtrate
