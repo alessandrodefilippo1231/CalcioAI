@@ -1,3 +1,5 @@
+import os
+
 from flask import Flask, render_template, request
 
 from services.partite_oggi import partite_oggi
@@ -1402,7 +1404,7 @@ def analizza(fixture_id):
 if __name__ == "__main__":
 
     app.run(
-        host="127.0.0.1",
-        port=5000,
-        debug=True
+        host="0.0.0.0",
+        port=int(os.environ.get("PORT", 5000)),
+        debug=False
     )
