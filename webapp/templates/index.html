@@ -124,10 +124,33 @@
 
         .empty {
             text-align: center;
-            padding: 50px 20px;
+            padding: 55px 25px;
             background: #12182b;
+            border: 1px solid #252d46;
             border-radius: 18px;
             color: #9ca3af;
+        }
+
+        .empty-icon {
+            font-size: 48px;
+            margin-bottom: 15px;
+        }
+
+        .empty h2 {
+            margin: 0 0 12px;
+            color: #ffffff;
+            font-size: 24px;
+        }
+
+        .empty p {
+            margin: 8px 0;
+            line-height: 1.6;
+        }
+
+        .empty-info {
+            margin-top: 18px !important;
+            color: #a5b4fc;
+            font-weight: bold;
         }
 
         footer {
@@ -148,6 +171,14 @@
 
             .match-card {
                 padding: 18px;
+            }
+
+            .empty {
+                padding: 45px 20px;
+            }
+
+            .empty h2 {
+                font-size: 21px;
             }
         }
     </style>
@@ -209,7 +240,7 @@
 
                     <a
                         class="analyse-button"
-                        href="/analizza/{{ partita.get('id') }}"
+                        href="/analizza/{{ partita.get('id') }}{% if request.view_args.get('data_test') %}?data={{ request.view_args.get('data_test') }}{% endif %}"
                     >
                         🔍 ANALIZZA PARTITA
                     </a>
@@ -224,10 +255,20 @@
 
         <div class="empty">
 
-            <h2>⚽ Nessuna partita disponibile</h2>
+            <div class="empty-icon">
+                ⚽
+            </div>
+
+            <h2>
+                Nessuna partita di club oggi
+            </h2>
 
             <p>
-                Al momento non ci sono partite disponibili.
+                Non ci sono partite disponibili nei campionati monitorati da CalcioAI.
+            </p>
+
+            <p class="empty-info">
+                🤖 CalcioAI tornerà ad analizzare le partite non appena saranno disponibili.
             </p>
 
         </div>
