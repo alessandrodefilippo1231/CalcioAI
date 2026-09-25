@@ -1,4 +1,4 @@
-import os
+﻿import os
 
 from flask import Flask, render_template, request
 
@@ -49,14 +49,14 @@ def classe_probabilita(probabilita):
 def home():
 
     print("")
-    print("🌐 WEB APP - CARICAMENTO PARTITE")
+    print("ðŸŒ WEB APP - CARICAMENTO PARTITE")
 
     try:
 
         partite = partite_oggi()
 
         print(
-            f"⚽ Partite trovate: {len(partite)}"
+            f"âš½ Partite trovate: {len(partite)}"
         )
 
         return render_template(
@@ -67,7 +67,7 @@ def home():
     except Exception as e:
 
         print(
-            f"❌ ERRORE HOME: {e}"
+            f"âŒ ERRORE HOME: {e}"
         )
 
         return (
@@ -80,6 +80,108 @@ def home():
 
 
 # ============================================================
+# ============================================================
+# MERCATI AI
+# ============================================================
+
+@app.route("/mercati")
+def mercati():
+
+    try:
+
+        data_test = request.args.get("data")
+
+        if data_test:
+            partite = partite_oggi(data_test=data_test)
+        else:
+            partite = partite_oggi()
+
+        print("")
+        print(f"Partite Mercati AI: {len(partite)}")
+
+        partite_mercati = []
+
+        for partita in partite:
+
+            try:
+
+                home_id = partita.get("home_id")
+                away_id = partita.get("away_id")
+
+                casa = partita.get("casa", "")
+                trasferta = partita.get("trasferta", "")
+                lega = partita.get("lega", "")
+                ora = partita.get("ora", "")
+                paese = partita.get("paese", "")
+
+                statistiche_casa = ultime_partite(home_id)
+                statistiche_trasferta = ultime_partite(away_id)
+
+                try:
+
+                    indicatori = calcola_indicatori(
+                        statistiche_casa,
+                        statistiche_trasferta
+                    )
+
+                except TypeError:
+
+                    indicatori = calcola_indicatori(
+                        statistiche_casa,
+                        statistiche_trasferta,
+                        casa,
+                        trasferta
+                    )
+
+                try:
+
+                    mercati = calcola_mercati_ai(
+                        statistiche_casa,
+                        statistiche_trasferta,
+                        indicatori
+                    )
+
+                except TypeError:
+
+                    mercati = calcola_mercati_ai(
+                        statistiche_casa,
+                        statistiche_trasferta
+                    )
+
+                partite_mercati.append({
+                    "id": partita.get("id"),
+                    "casa": casa,
+                    "trasferta": trasferta,
+                    "lega": lega,
+                    "ora": ora,
+                    "paese": paese,
+                    "data": partita.get("data"),
+                    "mercati": mercati
+                })
+
+            except Exception as e:
+
+                print(
+                    f"Errore Mercati {partita.get('casa')} - "
+                    f"{partita.get('trasferta')}: {e}"
+                )
+
+        return render_template(
+            "mercati.html",
+            partite=partite_mercati,
+            data_test=data_test
+        )
+
+    except Exception as e:
+
+        print(f"Errore Mercati AI: {e}")
+
+        return render_template(
+            "mercati.html",
+            partite=[],
+            data_test=request.args.get("data")
+        )
+
 # HOME TEST - DATA STORICA
 # ============================================================
 
@@ -87,8 +189,8 @@ def home():
 def home_test(data_test):
 
     print("")
-    print("🌐 WEB APP - TEST DATA STORICA")
-    print(f"📅 DATA TEST: {data_test}")
+    print("ðŸŒ WEB APP - TEST DATA STORICA")
+    print(f"ðŸ“… DATA TEST: {data_test}")
 
     try:
 
@@ -97,7 +199,7 @@ def home_test(data_test):
         )
 
         print(
-            f"⚽ Partite trovate: {len(partite)}"
+            f"âš½ Partite trovate: {len(partite)}"
         )
 
         return render_template(
@@ -108,7 +210,7 @@ def home_test(data_test):
     except Exception as e:
 
         print(
-            f"❌ ERRORE HOME TEST: {e}"
+            f"âŒ ERRORE HOME TEST: {e}"
         )
 
         return (
@@ -129,9 +231,9 @@ def analizza(fixture_id):
 
     print("")
     print("==============================================")
-    print("🧠 CALCIOAI - ANALISI PARTITA")
+    print("ðŸ§  CALCIOAI - ANALISI PARTITA")
     print("==============================================")
-    print(f"🆔 FIXTURE ID: {fixture_id}")
+    print(f"ðŸ†” FIXTURE ID: {fixture_id}")
 
     try:
 
@@ -144,13 +246,13 @@ def analizza(fixture_id):
         if data_test:
 
             print(
-                f"📅 DATA ANALISI TEST: {data_test}"
+                f"ðŸ“… DATA ANALISI TEST: {data_test}"
             )
 
         else:
 
             print(
-                "📅 DATA ANALISI: OGGI"
+                "ðŸ“… DATA ANALISI: OGGI"
             )
 
         # ----------------------------------------------------
@@ -209,7 +311,7 @@ def analizza(fixture_id):
                 >
 
                     <h1>
-                        ⚠️ Partita non trovata
+                        âš ï¸ Partita non trovata
                     </h1>
 
                     <p>
@@ -225,7 +327,7 @@ def analizza(fixture_id):
                     </p>
 
                     <p>
-                        La partita non è presente
+                        La partita non Ã¨ presente
                         nei dati restituiti da Football-Data.org
                         per questa data.
                     </p>
@@ -263,11 +365,11 @@ def analizza(fixture_id):
         )
 
         print(
-            f"⚽ {casa} - {trasferta}"
+            f"âš½ {casa} - {trasferta}"
         )
 
         print(
-            f"🏆 {lega}"
+            f"ðŸ† {lega}"
         )
 
         # ----------------------------------------------------
@@ -275,7 +377,7 @@ def analizza(fixture_id):
         # ----------------------------------------------------
 
         print("")
-        print("⚽ ANALISI PROBABILI MARCATORI")
+        print("âš½ ANALISI PROBABILI MARCATORI")
 
         try:
 
@@ -297,7 +399,7 @@ def analizza(fixture_id):
         except Exception as e:
 
             print(
-                f"⚠️ ERRORE MARCATORI: {e}"
+                f"âš ï¸ ERRORE MARCATORI: {e}"
             )
 
             dati_marcatori = {
@@ -320,7 +422,7 @@ def analizza(fixture_id):
         # ----------------------------------------------------
 
         print("")
-        print("📊 RECUPERO STATISTICHE")
+        print("ðŸ“Š RECUPERO STATISTICHE")
 
         statistiche_casa = ultime_partite(
             home_id
@@ -335,7 +437,7 @@ def analizza(fixture_id):
         # ----------------------------------------------------
 
         print("")
-        print("📈 CALCOLO INDICATORI")
+        print("ðŸ“ˆ CALCOLO INDICATORI")
 
         try:
 
@@ -358,7 +460,7 @@ def analizza(fixture_id):
         # ----------------------------------------------------
 
         print("")
-        print("🤖 CALCOLO AI SCORE")
+        print("ðŸ¤– CALCOLO AI SCORE")
 
         ai_score = calcola_ai_score(
             statistiche_casa,
@@ -368,7 +470,7 @@ def analizza(fixture_id):
         )
 
         print(
-            f"🤖 AI SCORE: {ai_score}"
+            f"ðŸ¤– AI SCORE: {ai_score}"
         )
 
         # ----------------------------------------------------
@@ -390,7 +492,7 @@ def analizza(fixture_id):
         # ----------------------------------------------------
 
         print("")
-        print("🎯 CALCOLO MERCATI AI")
+        print("ðŸŽ¯ CALCOLO MERCATI AI")
 
         try:
 
@@ -412,7 +514,7 @@ def analizza(fixture_id):
             except Exception as e:
 
                 print(
-                    f"⚠️ ERRORE MERCATI: {e}"
+                    f"âš ï¸ ERRORE MERCATI: {e}"
                 )
 
                 mercati = {}
@@ -420,7 +522,7 @@ def analizza(fixture_id):
         except Exception as e:
 
             print(
-                f"⚠️ ERRORE MERCATI: {e}"
+                f"âš ï¸ ERRORE MERCATI: {e}"
             )
 
             mercati = {}
@@ -430,7 +532,7 @@ def analizza(fixture_id):
         # ----------------------------------------------------
 
         print("")
-        print("🧠 DECISION ENGINE")
+        print("ðŸ§  DECISION ENGINE")
 
         try:
 
@@ -445,13 +547,13 @@ def analizza(fixture_id):
             )
 
             print(
-                f"🧠 DECISIONE AI: {decisione}"
+                f"ðŸ§  DECISIONE AI: {decisione}"
             )
 
         except Exception as e:
 
             print(
-                f"⚠️ ERRORE DECISION ENGINE: {e}"
+                f"âš ï¸ ERRORE DECISION ENGINE: {e}"
             )
 
             decisione = {}
@@ -509,7 +611,7 @@ def analizza(fixture_id):
         # ----------------------------------------------------
 
         print("")
-        print("🔢 CALCOLO RISULTATI ESATTI")
+        print("ðŸ”¢ CALCOLO RISULTATI ESATTI")
 
         try:
 
@@ -531,7 +633,7 @@ def analizza(fixture_id):
             except Exception as e:
 
                 print(
-                    f"⚠️ ERRORE RISULTATI ESATTI: {e}"
+                    f"âš ï¸ ERRORE RISULTATI ESATTI: {e}"
                 )
 
                 risultati_esatti = []
@@ -539,7 +641,7 @@ def analizza(fixture_id):
         except Exception as e:
 
             print(
-                f"⚠️ ERRORE RISULTATI ESATTI: {e}"
+                f"âš ï¸ ERRORE RISULTATI ESATTI: {e}"
             )
 
             risultati_esatti = []
@@ -701,7 +803,7 @@ def analizza(fixture_id):
             <div class="header">
 
                 <h1>
-                    ⚽ CalcioAI
+                    âš½ CalcioAI
                 </h1>
 
                 <div>
@@ -716,7 +818,7 @@ def analizza(fixture_id):
             <div class="match">
 
                 <div class="meta">
-                    🏆 {lega}
+                    ðŸ† {lega}
                 </div>
 
                 <div class="teams">
@@ -736,11 +838,11 @@ def analizza(fixture_id):
                 </div>
 
                 <div class="meta">
-                    🕒 {ora}
+                    ðŸ•’ {ora}
                 </div>
 
                 <div class="meta">
-                    🌍 {paese}
+                    ðŸŒ {paese}
                 </div>
 
             </div>
@@ -751,7 +853,7 @@ def analizza(fixture_id):
             <div class="card">
 
                 <h2>
-                    🤖 Pronostico AI
+                    ðŸ¤– Pronostico AI
                 </h2>
 
                 <div class="prediction">
@@ -833,7 +935,7 @@ def analizza(fixture_id):
             <div class="card">
 
                 <h2>
-                    📊 Statistiche recenti
+                    ðŸ“Š Statistiche recenti
                 </h2>
 
                 <div class="grid">
@@ -977,7 +1079,7 @@ def analizza(fixture_id):
             <div class="card">
 
                 <h2>
-                    📈 Indicatori AI
+                    ðŸ“ˆ Indicatori AI
                 </h2>
 
                 <div class="grid">
@@ -1015,7 +1117,7 @@ def analizza(fixture_id):
             <div class="card">
 
                 <h2>
-                    🎯 Mercati AI
+                    ðŸŽ¯ Mercati AI
                 </h2>
 
         """
@@ -1035,7 +1137,7 @@ def analizza(fixture_id):
                             </th>
 
                             <th>
-                                Probabilità
+                                ProbabilitÃ 
                             </th>
 
                         </tr>
@@ -1109,7 +1211,7 @@ def analizza(fixture_id):
             <div class="card">
 
                 <h2>
-                    🔢 Probabili risultati esatti
+                    ðŸ”¢ Probabili risultati esatti
                 </h2>
 
         """
@@ -1156,7 +1258,7 @@ def analizza(fixture_id):
                         </div>
 
                         <div class="small">
-                            Probabilità:
+                            ProbabilitÃ :
                             {numero(probabilita):.0f}%
                         </div>
 
@@ -1184,7 +1286,7 @@ def analizza(fixture_id):
             <div class="card">
 
                 <h2>
-                    ⚽ Probabili Marcatori AI
+                    âš½ Probabili Marcatori AI
                 </h2>
 
                 <div class="grid">
@@ -1236,7 +1338,7 @@ def analizza(fixture_id):
                         <div class="player">
 
                             <div class="player-name">
-                                ⚽ {nome}
+                                âš½ {nome}
                             </div>
 
                             <div class="small">
@@ -1248,7 +1350,7 @@ def analizza(fixture_id):
                             </div>
 
                             <div class="small">
-                                Probabilità gol:
+                                ProbabilitÃ  gol:
                                 <strong>
                                     {numero(probabilita):.0f}%
                                 </strong>
@@ -1320,7 +1422,7 @@ def analizza(fixture_id):
                         <div class="player">
 
                             <div class="player-name">
-                                ⚽ {nome}
+                                âš½ {nome}
                             </div>
 
                             <div class="small">
@@ -1332,7 +1434,7 @@ def analizza(fixture_id):
                             </div>
 
                             <div class="small">
-                                Probabilità gol:
+                                ProbabilitÃ  gol:
                                 <strong>
                                     {numero(probabilita):.0f}%
                                 </strong>
@@ -1364,7 +1466,7 @@ def analizza(fixture_id):
             <div class="footer">
 
                 CalcioAI
-                —
+                â€”
                 Analisi automatizzata
                 Football-Data.org
 
@@ -1377,12 +1479,31 @@ def analizza(fixture_id):
         </html>
         """
 
-        return html
+        return render_template(
+            "analisi.html",
+            lega=lega,
+            casa=casa,
+            trasferta=trasferta,
+            ora=ora,
+            paese=paese,
+            pronostico=pronostico,
+            fiducia=fiducia,
+            ai_score=ai_score,
+            value_index=value_index,
+            rischio=rischio,
+            statistiche_casa=statistiche_casa,
+            statistiche_trasferta=statistiche_trasferta,
+            indicatori=indicatori,
+            mercati=mercati,
+            risultati_esatti=risultati_esatti,
+            marcatori_casa=marcatori_casa,
+            marcatori_trasferta=marcatori_trasferta
+        )
 
     except Exception as e:
 
         print("")
-        print("❌ ERRORE ANALISI WEB")
+        print("âŒ ERRORE ANALISI WEB")
         print(e)
 
         return (
@@ -1408,3 +1529,6 @@ if __name__ == "__main__":
         port=int(os.environ.get("PORT", 5000)),
         debug=False
     )
+
+
+

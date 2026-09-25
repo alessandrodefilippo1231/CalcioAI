@@ -1,0 +1,1324 @@
+﻿<!DOCTYPE html>
+<html lang="it">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Mercati AI • CalcioAI</title>
+
+    <style>
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+
+            min-height: 100vh;
+
+            font-family:
+                Inter,
+                -apple-system,
+                BlinkMacSystemFont,
+                "Segoe UI",
+                sans-serif;
+
+            color: #ffffff;
+
+            background:
+
+                radial-gradient(
+                    circle at top left,
+                    rgba(124, 58, 237, 0.22),
+                    transparent 34%
+                ),
+
+                radial-gradient(
+                    circle at top right,
+                    rgba(37, 99, 235, 0.18),
+                    transparent 30%
+                ),
+
+                linear-gradient(
+                    135deg,
+                    #050816 0%,
+                    #0a1024 50%,
+                    #060914 100%
+                );
+
+            padding-bottom: 50px;
+        }
+
+        body::before {
+
+            content: "";
+
+            position: fixed;
+
+            inset: 0;
+
+            pointer-events: none;
+
+            opacity: 0.08;
+
+            background-image:
+
+                linear-gradient(
+                    rgba(255,255,255,0.08) 1px,
+                    transparent 1px
+                ),
+
+                linear-gradient(
+                    90deg,
+                    rgba(255,255,255,0.08) 1px,
+                    transparent 1px
+                );
+
+            background-size: 42px 42px;
+        }
+
+        .container {
+
+            width: min(1180px, calc(100% - 32px));
+
+            margin: 0 auto;
+
+            position: relative;
+
+            z-index: 1;
+        }
+
+        /* HEADER */
+
+        header {
+
+            padding: 28px 0 18px;
+
+            display: flex;
+
+            align-items: center;
+
+            justify-content: space-between;
+
+            gap: 20px;
+        }
+
+        .brand {
+
+            display: flex;
+
+            align-items: center;
+
+            gap: 14px;
+        }
+
+        .logo {
+
+            width: 52px;
+
+            height: 52px;
+
+            border-radius: 16px;
+
+            display: flex;
+
+            align-items: center;
+
+            justify-content: center;
+
+            font-size: 26px;
+
+            background:
+
+                linear-gradient(
+                    135deg,
+                    #7c3aed,
+                    #2563eb
+                );
+
+            box-shadow:
+                0 10px 35px rgba(37, 99, 235, 0.28);
+        }
+
+        .brand-text strong {
+
+            display: block;
+
+            font-size: 21px;
+
+            letter-spacing: -0.4px;
+        }
+
+        .brand-text span {
+
+            display: block;
+
+            margin-top: 3px;
+
+            font-size: 12px;
+
+            color: #8f9ab8;
+
+            letter-spacing: 0.4px;
+        }
+
+        .status {
+
+            display: inline-flex;
+
+            align-items: center;
+
+            gap: 8px;
+
+            padding: 9px 13px;
+
+            border-radius: 999px;
+
+            font-size: 11px;
+
+            font-weight: 800;
+
+            color: #c7d2fe;
+
+            background: rgba(99, 102, 241, 0.10);
+
+            border: 1px solid rgba(129, 140, 248, 0.22);
+        }
+
+        .status-dot {
+
+            width: 7px;
+
+            height: 7px;
+
+            border-radius: 50%;
+
+            background: #22c55e;
+
+            box-shadow: 0 0 12px rgba(34, 197, 94, 0.8);
+        }
+
+        /* NAVBAR */
+
+        .nav {
+
+            display: flex;
+
+            align-items: center;
+
+            gap: 8px;
+
+            padding: 7px;
+
+            margin-bottom: 38px;
+
+            border-radius: 18px;
+
+            background: rgba(15, 23, 42, 0.72);
+
+            border: 1px solid rgba(148, 163, 184, 0.12);
+
+            backdrop-filter: blur(18px);
+
+            overflow-x: auto;
+        }
+
+        .nav a {
+
+            display: inline-flex;
+
+            align-items: center;
+
+            gap: 7px;
+
+            padding: 11px 15px;
+
+            border-radius: 12px;
+
+            color: #9aa6c2;
+
+            text-decoration: none;
+
+            font-size: 13px;
+
+            font-weight: 700;
+
+            white-space: nowrap;
+
+            transition: 0.2s ease;
+        }
+
+        .nav a:hover {
+
+            color: #ffffff;
+
+            background: rgba(255,255,255,0.06);
+        }
+
+        .nav a.active {
+
+            color: #ffffff;
+
+            background:
+
+                linear-gradient(
+                    135deg,
+                    rgba(124,58,237,0.85),
+                    rgba(37,99,235,0.85)
+                );
+
+            box-shadow:
+                0 8px 25px rgba(37, 99, 235, 0.20);
+        }
+
+        .soon {
+
+            padding: 3px 6px;
+
+            border-radius: 6px;
+
+            font-size: 8px;
+
+            font-weight: 900;
+
+            color: #c4b5fd;
+
+            background: rgba(139, 92, 246, 0.16);
+        }
+
+        /* HERO */
+
+        .hero {
+
+            margin-bottom: 28px;
+        }
+
+        .hero-label {
+
+            display: inline-flex;
+
+            align-items: center;
+
+            gap: 8px;
+
+            padding: 7px 11px;
+
+            border-radius: 999px;
+
+            color: #c4b5fd;
+
+            background: rgba(124, 58, 237, 0.10);
+
+            border: 1px solid rgba(124, 58, 237, 0.20);
+
+            font-size: 10px;
+
+            font-weight: 900;
+
+            letter-spacing: 0.8px;
+
+            text-transform: uppercase;
+
+            margin-bottom: 13px;
+        }
+
+        .hero h1 {
+
+            font-size: clamp(32px, 5vw, 50px);
+
+            line-height: 1.02;
+
+            letter-spacing: -2px;
+
+            margin-bottom: 13px;
+        }
+
+        .hero h1 span {
+
+            background:
+
+                linear-gradient(
+                    90deg,
+                    #a78bfa,
+                    #60a5fa
+                );
+
+            -webkit-background-clip: text;
+
+            background-clip: text;
+
+            color: transparent;
+        }
+
+        .hero p {
+
+            max-width: 720px;
+
+            color: #8f9ab8;
+
+            font-size: 15px;
+
+            line-height: 1.65;
+        }
+
+        .date-badge {
+
+            margin-top: 18px;
+
+            display: inline-flex;
+
+            align-items: center;
+
+            gap: 8px;
+
+            padding: 9px 13px;
+
+            border-radius: 11px;
+
+            background: rgba(15, 23, 42, 0.78);
+
+            border: 1px solid rgba(148, 163, 184, 0.12);
+
+            color: #b9c4dd;
+
+            font-size: 12px;
+
+            font-weight: 700;
+        }
+
+        /* MATCH CARD */
+
+        .matches {
+
+            display: grid;
+
+            grid-template-columns:
+                repeat(2, minmax(0, 1fr));
+
+            gap: 20px;
+        }
+
+        .match-card {
+
+            padding: 22px;
+
+            border-radius: 22px;
+
+            background:
+
+                linear-gradient(
+                    145deg,
+                    rgba(17, 24, 39, 0.88),
+                    rgba(10, 16, 34, 0.92)
+                );
+
+            border: 1px solid rgba(148, 163, 184, 0.13);
+
+            box-shadow:
+                0 20px 55px rgba(0,0,0,0.20);
+
+            backdrop-filter: blur(20px);
+
+            transition:
+                transform 0.2s ease,
+                border-color 0.2s ease;
+        }
+
+        .match-card:hover {
+
+            transform: translateY(-3px);
+
+            border-color:
+                rgba(129, 140, 248, 0.30);
+        }
+
+        .match-top {
+
+            display: flex;
+
+            align-items: center;
+
+            justify-content: space-between;
+
+            gap: 12px;
+
+            margin-bottom: 20px;
+        }
+
+        .league {
+
+            display: inline-flex;
+
+            align-items: center;
+
+            gap: 6px;
+
+            padding: 7px 10px;
+
+            border-radius: 9px;
+
+            background: rgba(124, 58, 237, 0.11);
+
+            border: 1px solid rgba(124, 58, 237, 0.18);
+
+            color: #c4b5fd;
+
+            font-size: 10px;
+
+            font-weight: 900;
+
+            text-transform: uppercase;
+
+            letter-spacing: 0.5px;
+        }
+
+        .time {
+
+            color: #9aa6c2;
+
+            font-size: 12px;
+
+            font-weight: 800;
+        }
+
+        .teams {
+
+            display: grid;
+
+            grid-template-columns: 1fr auto 1fr;
+
+            align-items: center;
+
+            gap: 14px;
+
+            margin-bottom: 20px;
+        }
+
+        .team {
+
+            min-width: 0;
+        }
+
+        .team.away {
+
+            text-align: right;
+        }
+
+        .team-name {
+
+            font-size: 17px;
+
+            font-weight: 850;
+
+            line-height: 1.25;
+
+            overflow-wrap: anywhere;
+        }
+
+        .team-role {
+
+            margin-top: 5px;
+
+            color: #66718d;
+
+            font-size: 10px;
+
+            font-weight: 700;
+
+            text-transform: uppercase;
+
+            letter-spacing: 0.6px;
+        }
+
+        .vs {
+
+            width: 42px;
+
+            height: 42px;
+
+            display: flex;
+
+            align-items: center;
+
+            justify-content: center;
+
+            border-radius: 50%;
+
+            color: #8b9abb;
+
+            background: rgba(255,255,255,0.045);
+
+            border: 1px solid rgba(148,163,184,0.12);
+
+            font-size: 11px;
+
+            font-weight: 900;
+        }
+
+        /* MARKET GRID */
+
+        .market-title {
+
+            display: flex;
+
+            align-items: center;
+
+            justify-content: space-between;
+
+            margin-bottom: 11px;
+        }
+
+        .market-title strong {
+
+            font-size: 12px;
+
+            color: #dbe4ff;
+
+            letter-spacing: 0.2px;
+        }
+
+        .market-title span {
+
+            color: #66718d;
+
+            font-size: 10px;
+
+            font-weight: 700;
+        }
+
+        .market-group {
+
+            margin-top: 15px;
+        }
+
+        .market-grid {
+
+            display: grid;
+
+            grid-template-columns:
+                repeat(3, minmax(0, 1fr));
+
+            gap: 8px;
+        }
+
+        .market {
+
+            min-height: 70px;
+
+            padding: 11px 9px;
+
+            border-radius: 13px;
+
+            background: rgba(255,255,255,0.035);
+
+            border: 1px solid rgba(148,163,184,0.10);
+
+            display: flex;
+
+            flex-direction: column;
+
+            align-items: center;
+
+            justify-content: center;
+
+            text-align: center;
+        }
+
+        .market-name {
+
+            color: #8f9ab8;
+
+            font-size: 10px;
+
+            font-weight: 800;
+
+            line-height: 1.25;
+        }
+
+        .market-value {
+
+            margin-top: 5px;
+
+            font-size: 19px;
+
+            font-weight: 950;
+
+            letter-spacing: -0.5px;
+
+            background:
+
+                linear-gradient(
+                    90deg,
+                    #c4b5fd,
+                    #93c5fd
+                );
+
+            -webkit-background-clip: text;
+
+            background-clip: text;
+
+            color: transparent;
+        }
+
+        .market-bar {
+
+            width: 100%;
+
+            height: 4px;
+
+            margin-top: 8px;
+
+            overflow: hidden;
+
+            border-radius: 99px;
+
+            background: rgba(255,255,255,0.07);
+        }
+
+        .market-bar span {
+
+            display: block;
+
+            height: 100%;
+
+            border-radius: inherit;
+
+            background:
+
+                linear-gradient(
+                    90deg,
+                    #7c3aed,
+                    #3b82f6
+                );
+        }
+
+        /* FOOTER */
+
+        .card-footer {
+
+            display: flex;
+
+            align-items: center;
+
+            justify-content: space-between;
+
+            gap: 12px;
+
+            margin-top: 20px;
+
+            padding-top: 16px;
+
+            border-top:
+                1px solid rgba(148,163,184,0.10);
+        }
+
+        .engine {
+
+            color: #66718d;
+
+            font-size: 10px;
+
+            font-weight: 700;
+        }
+
+        .analyse {
+
+            display: inline-flex;
+
+            align-items: center;
+
+            justify-content: center;
+
+            padding: 11px 14px;
+
+            border-radius: 11px;
+
+            color: #ffffff;
+
+            text-decoration: none;
+
+            font-size: 11px;
+
+            font-weight: 900;
+
+            background:
+
+                linear-gradient(
+                    135deg,
+                    #7c3aed,
+                    #2563eb
+                );
+
+            box-shadow:
+                0 10px 24px rgba(37,99,235,0.18);
+
+            transition: 0.2s ease;
+        }
+
+        .analyse:hover {
+
+            transform: translateY(-1px);
+
+            box-shadow:
+                0 14px 30px rgba(37,99,235,0.28);
+        }
+
+        /* EMPTY */
+
+        .empty {
+
+            padding: 55px 25px;
+
+            text-align: center;
+
+            border-radius: 22px;
+
+            background: rgba(15,23,42,0.65);
+
+            border: 1px solid rgba(148,163,184,0.12);
+        }
+
+        .empty-icon {
+
+            font-size: 40px;
+
+            margin-bottom: 12px;
+        }
+
+        .empty h2 {
+
+            font-size: 20px;
+
+            margin-bottom: 8px;
+        }
+
+        .empty p {
+
+            color: #7f8ba8;
+
+            font-size: 13px;
+        }
+
+        footer {
+
+            margin-top: 45px;
+
+            padding-top: 22px;
+
+            text-align: center;
+
+            border-top:
+                1px solid rgba(148,163,184,0.08);
+
+            color: #58637e;
+
+            font-size: 10px;
+
+            letter-spacing: 0.3px;
+        }
+
+        /* MOBILE */
+
+        @media (max-width: 820px) {
+
+            .matches {
+
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 620px) {
+
+            .container {
+
+                width: min(100% - 20px, 1180px);
+            }
+
+            header {
+
+                padding-top: 18px;
+            }
+
+            .brand-text strong {
+
+                font-size: 18px;
+            }
+
+            .status {
+
+                display: none;
+            }
+
+            .nav {
+
+                margin-bottom: 28px;
+            }
+
+            .nav a {
+
+                padding: 10px 12px;
+
+                font-size: 12px;
+            }
+
+            .hero h1 {
+
+                letter-spacing: -1.3px;
+            }
+
+            .match-card {
+
+                padding: 17px;
+            }
+
+            .teams {
+
+                gap: 8px;
+            }
+
+            .team-name {
+
+                font-size: 14px;
+            }
+
+            .vs {
+
+                width: 36px;
+
+                height: 36px;
+            }
+
+            .market-grid {
+
+                grid-template-columns:
+                    repeat(3, minmax(0, 1fr));
+
+                gap: 6px;
+            }
+
+            .market {
+
+                min-height: 65px;
+
+                padding: 8px 5px;
+            }
+
+            .market-value {
+
+                font-size: 17px;
+            }
+
+            .card-footer {
+
+                flex-direction: column;
+
+                align-items: stretch;
+            }
+
+            .analyse {
+
+                width: 100%;
+            }
+        }
+
+    </style>
+
+</head>
+
+<body>
+
+<div class="container">
+
+    <!-- HEADER -->
+
+    <header>
+
+        <div class="brand">
+
+            <div class="logo">
+                ⚽
+            </div>
+
+            <div class="brand-text">
+
+                <strong>CalcioAI</strong>
+
+                <span>AI Football Engine</span>
+
+            </div>
+
+        </div>
+
+        <div class="status">
+
+            <span class="status-dot"></span>
+
+            SISTEMA AI ATTIVO
+
+        </div>
+
+    </header>
+
+
+    <!-- NAVBAR -->
+
+    <nav class="nav">
+
+        <a href="/">
+            🏠 Dashboard
+        </a>
+
+        <a href="/mercati" class="active">
+            🎯 Mercati AI
+        </a>
+
+        <a href="/#classifica">
+            🏆 Classifica
+            <span class="soon">PRESTO</span>
+        </a>
+
+        <a href="/#storico">
+            📊 Storico
+            <span class="soon">PRESTO</span>
+        </a>
+
+    </nav>
+
+
+    <!-- HERO -->
+
+    <section class="hero">
+
+        <div class="hero-label">
+            🎯 MOTORE PREDITTIVO
+        </div>
+
+        <h1>
+            Mercati <span>AI</span>
+        </h1>
+
+        <p>
+            Analisi probabilistica dei principali mercati calcistici
+            elaborata direttamente dal motore CalcioAI.
+            Le percentuali visualizzate sono quelle calcolate
+            dall'intelligenza artificiale del sistema.
+        </p>
+
+        {% if data_test %}
+
+        <div class="date-badge">
+            📅 Data analizzata: {{ data_test }}
+        </div>
+
+        {% else %}
+
+        <div class="date-badge">
+            📅 Partite disponibili oggi
+        </div>
+
+        {% endif %}
+
+    </section>
+
+
+    <!-- MATCHES -->
+
+    {% if partite %}
+
+    <section class="matches">
+
+        {% for partita in partite %}
+
+        {% set mercati = partita.get('mercati', {}) %}
+
+        <article class="match-card">
+
+            <div class="match-top">
+
+                <div class="league">
+                    🏆 {{ partita.get('lega', 'Campionato') }}
+                </div>
+
+                <div class="time">
+                    🕐 {{ partita.get('ora', '--:--') }}
+                </div>
+
+            </div>
+
+
+            <div class="teams">
+
+                <div class="team">
+
+                    <div class="team-name">
+                        {{ partita.get('casa', 'Casa') }}
+                    </div>
+
+                    <div class="team-role">
+                        CASA
+                    </div>
+
+                </div>
+
+
+                <div class="vs">
+                    VS
+                </div>
+
+
+                <div class="team away">
+
+                    <div class="team-name">
+                        {{ partita.get('trasferta', 'Trasferta') }}
+                    </div>
+
+                    <div class="team-role">
+                        TRASFERTA
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <!-- 1X2 -->
+
+            <div class="market-group">
+
+                <div class="market-title">
+
+                    <strong>⚽ 1X2</strong>
+
+                    <span>Esito finale</span>
+
+                </div>
+
+                <div class="market-grid">
+
+                    {% for nome in ['1', 'X', '2'] %}
+
+                    <div class="market">
+
+                        <div class="market-name">
+                            {{ nome }}
+                        </div>
+
+                        <div class="market-value">
+                            {{ mercati.get(nome, '--') }}%
+                        </div>
+
+                        {% if mercati.get(nome) is not none %}
+
+                        <div class="market-bar">
+
+                            <span style="width: {{ mercati.get(nome, 0) }}%;"></span>
+
+                        </div>
+
+                        {% endif %}
+
+                    </div>
+
+                    {% endfor %}
+
+                </div>
+
+            </div>
+
+
+            <!-- GOALS -->
+
+            <div class="market-group">
+
+                <div class="market-title">
+
+                    <strong>📈 GOL</strong>
+
+                    <span>Over / Under</span>
+
+                </div>
+
+                <div class="market-grid">
+
+                    {% for nome in ['Over 1.5', 'Over 2.5', 'Under 3.5'] %}
+
+                    <div class="market">
+
+                        <div class="market-name">
+                            {{ nome }}
+                        </div>
+
+                        <div class="market-value">
+                            {{ mercati.get(nome, '--') }}%
+                        </div>
+
+                        {% if mercati.get(nome) is not none %}
+
+                        <div class="market-bar">
+
+                            <span style="width: {{ mercati.get(nome, 0) }}%;"></span>
+
+                        </div>
+
+                        {% endif %}
+
+                    </div>
+
+                    {% endfor %}
+
+                </div>
+
+            </div>
+
+
+            <!-- GOAL / NO GOAL -->
+
+            <div class="market-group">
+
+                <div class="market-title">
+
+                    <strong>🎯 GOAL</strong>
+
+                    <span>Entrambe a segno</span>
+
+                </div>
+
+                <div class="market-grid">
+
+                    {% for nome in ['Goal', 'No Goal'] %}
+
+                    <div class="market">
+
+                        <div class="market-name">
+                            {{ nome }}
+                        </div>
+
+                        <div class="market-value">
+                            {{ mercati.get(nome, '--') }}%
+                        </div>
+
+                        {% if mercati.get(nome) is not none %}
+
+                        <div class="market-bar">
+
+                            <span style="width: {{ mercati.get(nome, 0) }}%;"></span>
+
+                        </div>
+
+                        {% endif %}
+
+                    </div>
+
+                    {% endfor %}
+
+                </div>
+
+            </div>
+
+
+            <!-- DOUBLE CHANCE -->
+
+            <div class="market-group">
+
+                <div class="market-title">
+
+                    <strong>🔄 DOPPIA CHANCE</strong>
+
+                    <span>Copertura risultato</span>
+
+                </div>
+
+                <div class="market-grid">
+
+                    {% for nome in ['1X', 'X2', '12'] %}
+
+                    <div class="market">
+
+                        <div class="market-name">
+                            {{ nome }}
+                        </div>
+
+                        <div class="market-value">
+                            {{ mercati.get(nome, '--') }}%
+                        </div>
+
+                        {% if mercati.get(nome) is not none %}
+
+                        <div class="market-bar">
+
+                            <span style="width: {{ mercati.get(nome, 0) }}%;"></span>
+
+                        </div>
+
+                        {% endif %}
+
+                    </div>
+
+                    {% endfor %}
+
+                </div>
+
+            </div>
+
+
+            <!-- FOOTER -->
+
+            <div class="card-footer">
+
+                <div class="engine">
+                    🤖 Calcolato dal motore CalcioAI
+                </div>
+
+                <a
+                    class="analyse"
+                    href="/analizza/{{ partita.get('id') }}{% if partita.get('data') %}?data={{ partita.get('data') }}{% endif %}"
+                >
+                    🔍 ANALISI COMPLETA
+                </a>
+
+            </div>
+
+        </article>
+
+        {% endfor %}
+
+    </section>
+
+    {% else %}
+
+    <section class="empty">
+
+        <div class="empty-icon">
+            🎯
+        </div>
+
+        <h2>
+            Nessun mercato disponibile
+        </h2>
+
+        <p>
+            Non ci sono partite disponibili per la data selezionata.
+        </p>
+
+    </section>
+
+    {% endif %}
+
+
+    <footer>
+
+        CalcioAI • AI Football Engine •
+        Dati calcistici Football-Data.org
+
+    </footer>
+
+</div>
+
+</body>
+
+</html>
