@@ -2,10 +2,11 @@ import math
 
 
 # ============================================================
-# UTILITY
+# UTILITÀ
 # ============================================================
 
-def _clamp(valore, minimo=0, massimo=100):
+def _clamp(valore, minimo, massimo):
+
     return max(
         minimo,
         min(
@@ -15,35 +16,60 @@ def _clamp(valore, minimo=0, massimo=100):
     )
 
 
-def _poisson(lam, gol):
-    """
-    Probabilità di segnare esattamente 'gol'
-    con distribuzione di Poisson.
-    """
+def _poisson(k, lamb):
 
-    if lam <= 0:
+    if lamb <= 0:
 
-        return 1.0 if gol == 0 else 0.0
+        return 1.0 if k == 0 else 0.0
 
     return (
-        math.exp(-lam)
-        * (lam ** gol)
-        / math.factorial(gol)
+        math.exp(-lamb)
+        * (lamb ** k)
+        / math.factorial(k)
     )
 
 
+# ============================================================
+# NUMERO PARTITE ANALIZZATE
+# ============================================================
+
 def _numero_partite(stats):
-    """
-    Determina quante partite sono rappresentate
-    dalle statistiche.
 
-    La forma normalmente contiene 5 risultati:
-    esempio: VVPVS
-
-    Se la forma non è disponibile, utilizziamo
-    5 come fallback perché il motore lavora
-    normalmente sulle ultime 5 partite.
     """
+    Recupera il numero reale di partite analizzate.
+
+    Priorità:
+    1. partite_analizzate
+    2. conteggio della forma
+    3. fallback 5
+    """
+
+    # --------------------------------------------------------
+    # METODO PRINCIPALE
+    # --------------------------------------------------------
+
+    partite = stats.get(
+        "partite_analizzate"
+    )
+
+    try:
+
+        partite = int(partite)
+
+        if partite > 0:
+
+            return partite
+
+    except (
+        TypeError,
+        ValueError
+    ):
+
+        pass
+
+    # --------------------------------------------------------
+    # FALLBACK: LETTURA FORMA
+    # --------------------------------------------------------
 
     forma = stats.get(
         "forma",
@@ -57,15 +83,44 @@ def _numero_partite(stats):
 
         forma = forma.strip()
 
-        if len(forma) > 0:
+        if forma:
 
-            return len(forma)
+            risultati = []
+
+            for elemento in forma.replace(
+                ",",
+                " "
+            ).split():
+
+                if elemento:
+
+                    simbolo = elemento[-1].upper()
+
+                    if simbolo in (
+                        "V",
+                        "P",
+                        "S"
+                    ):
+
+                        risultati.append(
+                            simbolo
+                        )
+
+            if risultati:
+
+                return len(
+                    risultati
+                )
+
+    # --------------------------------------------------------
+    # FALLBACK FINALE
+    # --------------------------------------------------------
 
     return 5
 
 
 # ============================================================
-# RISULTATI ESATTI
+# RISULTATI ESATTI AI
 # ============================================================
 
 def calcola_risultati_esatti(
@@ -74,35 +129,11 @@ def calcola_risultati_esatti(
     indicatori=None,
     numero_risultati=3
 ):
-    """
-    Calcola i risultati esatti più probabili.
 
-    IMPORTANTE:
-    gol_fatti e gol_subiti rappresentano i gol
-    complessivi delle ultime partite, quindi vengono
-    trasformati in medie per partita prima di
-    calcolare gli expected goals.
-
-    Il modulo è separato dal Decision Engine.
-    """
-
-    if not isinstance(
-        stats_casa,
-        dict
-    ):
-        stats_casa = {}
-
-    if not isinstance(
-        stats_trasferta,
-        dict
-    ):
-        stats_trasferta = {}
-
-    if not isinstance(
-        indicatori,
-        dict
-    ):
-        indicatori = {}
+    print("")
+    print(
+        "🎯 RISULTATI ESATTI AI"
+    )
 
     # ========================================================
     # DATI CASA
@@ -120,6 +151,10 @@ def calcola_risultati_esatti(
             "gol_subiti",
             0
         ) or 0
+    )
+
+    partite_casa = _numero_partite(
+        stats_casa
     )
 
     # ========================================================
@@ -140,192 +175,174 @@ def calcola_risultati_esatti(
         ) or 0
     )
 
-    # ========================================================
-    # NUMERO PARTITE
-    # ========================================================
-
-    partite_casa = _numero_partite(
-        stats_casa
-    )
-
     partite_trasferta = _numero_partite(
         stats_trasferta
     )
 
-    # Evitiamo divisioni per zero
-
-    partite_casa = max(
-        1,
-        partite_casa
-    )
-
-    partite_trasferta = max(
-        1,
-        partite_trasferta
-    )
-
     # ========================================================
-    # MEDIE GOL PER PARTITA
+    # MEDIE REALI
     # ========================================================
 
     media_gol_fatti_casa = (
         gol_fatti_casa
-        / partite_casa
+        / max(
+            partite_casa,
+            1
+        )
     )
 
     media_gol_subiti_casa = (
         gol_subiti_casa
-        / partite_casa
+        / max(
+            partite_casa,
+            1
+        )
     )
 
     media_gol_fatti_trasferta = (
         gol_fatti_trasferta
-        / partite_trasferta
+        / max(
+            partite_trasferta,
+            1
+        )
     )
 
     media_gol_subiti_trasferta = (
         gol_subiti_trasferta
-        / partite_trasferta
+        / max(
+            partite_trasferta,
+            1
+        )
+    )
+
+    print(
+        f"📊 Media gol "
+        f"{stats_casa.get('forma', 'N/D')}: "
+        f"{media_gol_fatti_casa:.2f} fatti / "
+        f"{media_gol_subiti_casa:.2f} subiti"
+    )
+
+    print(
+        f"📊 Media gol "
+        f"{stats_trasferta.get('forma', 'N/D')}: "
+        f"{media_gol_fatti_trasferta:.2f} fatti / "
+        f"{media_gol_subiti_trasferta:.2f} subiti"
     )
 
     # ========================================================
     # EXPECTED GOALS BASE
     # ========================================================
 
-    # Attacco casa + difesa trasferta
-
     lambda_casa = (
         media_gol_fatti_casa
-        + media_gol_subiti_trasferta
+        +
+        media_gol_subiti_trasferta
     ) / 2
-
-    # Attacco trasferta + difesa casa
 
     lambda_trasferta = (
         media_gol_fatti_trasferta
-        + media_gol_subiti_casa
+        +
+        media_gol_subiti_casa
     ) / 2
 
     # ========================================================
-    # PICCOLI AGGIUSTAMENTI AI
+    # AGGIUSTAMENTO INDICATORI AI
     # ========================================================
 
-    over15 = float(
-        indicatori.get(
-            "over15",
-            0
-        ) or 0
-    )
+    if isinstance(
+        indicatori,
+        dict
+    ):
 
-    over25 = float(
-        indicatori.get(
-            "over25",
-            0
-        ) or 0
-    )
-
-    golgol = float(
-        indicatori.get(
-            "golgol",
-            0
-        ) or 0
-    )
-
-    under35 = float(
-        indicatori.get(
-            "under35",
-            0
-        ) or 0
-    )
-
-    # --------------------------------------------------------
-    # OVER 2.5
-    # --------------------------------------------------------
-
-    if over25 >= 80:
-
-        lambda_casa *= 1.08
-        lambda_trasferta *= 1.08
-
-    elif over25 >= 65:
-
-        lambda_casa *= 1.04
-        lambda_trasferta *= 1.04
-
-    elif over25 <= 35:
-
-        lambda_casa *= 0.96
-        lambda_trasferta *= 0.96
-
-    # --------------------------------------------------------
-    # OVER 1.5
-    # --------------------------------------------------------
-
-    if over15 >= 90:
-
-        lambda_casa *= 1.03
-        lambda_trasferta *= 1.03
-
-    # --------------------------------------------------------
-    # GOAL / GOAL
-    # --------------------------------------------------------
-
-    if golgol >= 80:
-
-        lambda_casa *= 1.03
-        lambda_trasferta *= 1.03
-
-    elif golgol <= 40:
-
-        # Leggero abbassamento,
-        # evitando di forzare troppo il modello.
-
-        lambda_casa *= 0.98
-        lambda_trasferta *= 0.98
-
-    # --------------------------------------------------------
-    # UNDER 3.5
-    # --------------------------------------------------------
-
-    if under35 >= 80:
-
-        lambda_casa *= 0.96
-        lambda_trasferta *= 0.96
-
-    # ========================================================
-    # LIMITI REALISTICI
-    # ========================================================
-
-    # Evitiamo valori estremi.
-
-    lambda_casa = max(
-        0.20,
-        min(
-            3.50,
-            lambda_casa
+        over15 = float(
+            indicatori.get(
+                "over15",
+                0
+            ) or 0
         )
-    )
 
-    lambda_trasferta = max(
-        0.20,
-        min(
-            3.50,
-            lambda_trasferta
+        over25 = float(
+            indicatori.get(
+                "over25",
+                0
+            ) or 0
         )
+
+        golgol = float(
+            indicatori.get(
+                "golgol",
+                0
+            ) or 0
+        )
+
+        # ----------------------------------------------------
+        # OVER 1.5
+        # ----------------------------------------------------
+
+        if over15 > 0:
+
+            fattore_over15 = (
+                1
+                +
+                (
+                    over15 - 50
+                )
+                / 1000
+            )
+
+            lambda_casa *= fattore_over15
+            lambda_trasferta *= fattore_over15
+
+        # ----------------------------------------------------
+        # OVER 2.5
+        # ----------------------------------------------------
+
+        if over25 > 0:
+
+            fattore_over25 = (
+                1
+                +
+                (
+                    over25 - 50
+                )
+                / 1500
+            )
+
+            lambda_casa *= fattore_over25
+            lambda_trasferta *= fattore_over25
+
+        # ----------------------------------------------------
+        # GOAL / GOAL
+        # ----------------------------------------------------
+
+        if golgol > 0:
+
+            fattore_golgol = (
+                1
+                +
+                (
+                    golgol - 50
+                )
+                / 1500
+            )
+
+            lambda_casa *= fattore_golgol
+            lambda_trasferta *= fattore_golgol
+
+    # ========================================================
+    # LIMITI DI SICUREZZA
+    # ========================================================
+
+    lambda_casa = _clamp(
+        lambda_casa,
+        0.20,
+        4.00
     )
 
-    print("")
-    print("🎯 RISULTATI ESATTI AI")
-    print(
-        f"📊 Media gol {stats_casa.get('forma', '')}: "
-        f"{media_gol_fatti_casa:.2f} fatti / "
-        f"{media_gol_subiti_casa:.2f} subiti"
-    )
-
-    print(
-        f"📊 Media gol {stats_trasferta.get('forma', '')}: "
-        f"{media_gol_fatti_trasferta:.2f} fatti / "
-        f"{media_gol_subiti_trasferta:.2f} subiti"
+    lambda_trasferta = _clamp(
+        lambda_trasferta,
+        0.20,
+        4.00
     )
 
     print(
@@ -339,39 +356,44 @@ def calcola_risultati_esatti(
     )
 
     # ========================================================
-    # CALCOLO RISULTATI
+    # CALCOLO POISSON
     # ========================================================
 
     risultati = []
 
-    # Consideriamo risultati da 0-0 fino a 6-6.
-
-    for gol_casa in range(7):
+    for gol_casa in range(
+        0,
+        7
+    ):
 
         probabilita_casa = _poisson(
-            lambda_casa,
-            gol_casa
+            gol_casa,
+            lambda_casa
         )
 
-        for gol_trasferta in range(7):
+        for gol_trasferta in range(
+            0,
+            7
+        ):
 
             probabilita_trasferta = _poisson(
-                lambda_trasferta,
-                gol_trasferta
+                gol_trasferta,
+                lambda_trasferta
             )
 
             probabilita = (
                 probabilita_casa
-                * probabilita_trasferta
+                *
+                probabilita_trasferta
             )
 
             risultati.append(
                 {
-                    "risultato":
-                        f"{gol_casa}-{gol_trasferta}",
-
-                    "probabilita_raw":
-                        probabilita
+                    "risultato": (
+                        f"{gol_casa}-"
+                        f"{gol_trasferta}"
+                    ),
+                    "probabilita_raw": probabilita
                 }
             )
 
@@ -380,32 +402,37 @@ def calcola_risultati_esatti(
     # ========================================================
 
     totale = sum(
-        r["probabilita_raw"]
-        for r in risultati
+        risultato[
+            "probabilita_raw"
+        ]
+        for risultato in risultati
     )
 
-    if totale > 0:
+    if totale <= 0:
 
-        for r in risultati:
+        return []
 
-            r["probabilita"] = (
-                r["probabilita_raw"]
+    for risultato in risultati:
+
+        risultato["probabilita"] = round(
+            (
+                risultato[
+                    "probabilita_raw"
+                ]
                 / totale
-                * 100
             )
-
-    else:
-
-        for r in risultati:
-
-            r["probabilita"] = 0
+            * 100,
+            1
+        )
 
     # ========================================================
     # ORDINAMENTO
     # ========================================================
 
     risultati.sort(
-        key=lambda x: x["probabilita"],
+        key=lambda x: x[
+            "probabilita"
+        ],
         reverse=True
     )
 
@@ -413,39 +440,23 @@ def calcola_risultati_esatti(
     # TOP RISULTATI
     # ========================================================
 
-    top = risultati[
-        :max(
-            1,
-            int(numero_risultati)
-        )
+    migliori = risultati[
+        :numero_risultati
     ]
 
-    # ========================================================
-    # OUTPUT PULITO
-    # ========================================================
+    # Rimuoviamo il valore tecnico
+    # utilizzato per il calcolo.
 
-    output = []
+    for risultato in migliori:
 
-    for risultato in top:
-
-        output.append(
-            {
-                "risultato":
-                    risultato["risultato"],
-
-                "probabilita":
-                    round(
-                        _clamp(
-                            risultato["probabilita"]
-                        ),
-                        1
-                    )
-            }
+        risultato.pop(
+            "probabilita_raw",
+            None
         )
 
     print(
-        "🏆 TOP RISULTATI:",
-        output
+        f"🏆 TOP RISULTATI: "
+        f"{migliori}"
     )
 
-    return output
+    return migliori

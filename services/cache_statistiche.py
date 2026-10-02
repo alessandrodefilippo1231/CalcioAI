@@ -5,6 +5,10 @@ from datetime import datetime, timedelta
 
 CACHE_FILE = "cache/statistiche_cache.json"
 
+# Versione del formato della cache.
+# Aumentandola, le vecchie cache vengono automaticamente ignorate.
+CACHE_VERSION = 2
+
 
 def _crea_cartella():
     os.makedirs("cache", exist_ok=True)
@@ -50,7 +54,13 @@ def _scrivi_cache(cache):
 def prendi_statistiche(team_id):
     """
     Restituisce le statistiche dalla cache
-    se non sono vecchie di 24 ore.
+    se:
+
+    - la cache appartiene alla versione corrente
+    - non è più vecchia di 24 ore
+
+    Le cache delle versioni precedenti vengono
+    automaticamente ignorate.
     """
 
     cache = _leggi_cache()
@@ -62,8 +72,23 @@ def prendi_statistiche(team_id):
 
     try:
 
+        dati_team = cache[team_id]
+
+        # Controllo versione cache.
+        # Se manca, la cache è considerata vecchia.
+        versione = dati_team.get("versione", 1)
+
+        if versione != CACHE_VERSION:
+
+            print(
+                f"♻️ CACHE VECCHIA: {team_id} "
+                f"(versione {versione} → {CACHE_VERSION})"
+            )
+
+            return None
+
         salvata = datetime.fromisoformat(
-            cache[team_id]["data"]
+            dati_team["data"]
         )
 
         differenza = datetime.now() - salvata
@@ -71,13 +96,23 @@ def prendi_statistiche(team_id):
         # Cache valida per 24 ore
         if differenza > timedelta(hours=24):
 
+            print(
+                f"⏰ CACHE SCADUTA: {team_id}"
+            )
+
+            return None
+
+        statistiche = dati_team.get("statistiche")
+
+        if statistiche is None:
+
             return None
 
         print(
             f"✅ CACHE STATISTICHE: {team_id}"
         )
 
-        return cache[team_id]["statistiche"]
+        return statistiche
 
     except Exception:
 
@@ -87,7 +122,7 @@ def prendi_statistiche(team_id):
 def salva_statistiche(team_id, statistiche):
     """
     Salva le statistiche della squadra
-    nella cache.
+    nella cache con la versione corrente.
     """
 
     cache = _leggi_cache()
@@ -95,6 +130,8 @@ def salva_statistiche(team_id, statistiche):
     team_id = str(team_id)
 
     cache[team_id] = {
+
+        "versione": CACHE_VERSION,
 
         "data": datetime.now().isoformat(),
 

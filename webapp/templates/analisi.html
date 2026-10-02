@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <title>CalcioAI - Analisi partita</title>
+    <title>Analisi AI - CalcioAI</title>
 
     <style>
         * {
@@ -15,121 +15,146 @@
 
         body {
             font-family: Arial, Helvetica, sans-serif;
-            color: #f5f7fb;
-            min-height: 100vh;
             background:
-                radial-gradient(circle at 10% 0%, rgba(0, 255, 170, 0.10), transparent 30%),
-                radial-gradient(circle at 90% 10%, rgba(70, 120, 255, 0.13), transparent 30%),
-                #070a10;
+                radial-gradient(circle at top left, rgba(0, 255, 140, 0.08), transparent 35%),
+                radial-gradient(circle at top right, rgba(0, 140, 255, 0.08), transparent 35%),
+                #080d12;
+            color: #f4f7f9;
+            min-height: 100vh;
         }
 
-        body::before {
-            content: "";
-            position: fixed;
-            inset: 0;
-            pointer-events: none;
-            opacity: 0.20;
-            background-image:
-                linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px);
-            background-size: 40px 40px;
+        a {
+            color: inherit;
+            text-decoration: none;
         }
 
         .container {
-            width: min(1180px, 94%);
+            width: min(1180px, calc(100% - 30px));
             margin: 0 auto;
-            padding: 25px 0 45px;
-            position: relative;
-            z-index: 1;
         }
 
-        header {
+        /* =========================
+           TOPBAR
+        ========================= */
+
+        .topbar {
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+            background: rgba(8, 13, 18, 0.94);
+            backdrop-filter: blur(10px);
+            position: sticky;
+            top: 0;
+            z-index: 20;
+        }
+
+        .topbar-inner {
+            min-height: 68px;
             display: flex;
+            align-items: center;
             justify-content: space-between;
-            align-items: center;
             gap: 20px;
-            margin-bottom: 25px;
         }
 
-        .brand {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-
-        .brand-ball {
-            width: 46px;
-            height: 46px;
-            border-radius: 14px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 25px;
-            background: linear-gradient(135deg, #16e39a, #1976ff);
-            box-shadow: 0 10px 35px rgba(22, 227, 154, 0.18);
-        }
-
-        .brand-text h1 {
+        .logo {
             font-size: 24px;
-            font-weight: 900;
-            letter-spacing: -0.7px;
-        }
-
-        .brand-text span {
-            display: block;
-            color: #8c96a8;
-            font-size: 11px;
-            letter-spacing: 2px;
-            margin-top: 3px;
-        }
-
-        .ai-badge {
-            padding: 9px 14px;
-            border: 1px solid rgba(22, 227, 154, 0.25);
-            border-radius: 999px;
-            background: rgba(22, 227, 154, 0.07);
-            color: #54efb5;
-            font-size: 11px;
             font-weight: 800;
-            letter-spacing: 1px;
+            letter-spacing: -0.5px;
         }
 
-        .match-hero {
-            border: 1px solid rgba(255,255,255,0.08);
-            border-radius: 26px;
-            padding: 30px;
-            background:
-                linear-gradient(145deg, rgba(20,26,37,0.97), rgba(10,14,22,0.97));
-            box-shadow: 0 25px 70px rgba(0,0,0,0.35);
-            overflow: hidden;
+        .logo span {
+            color: #19e68c;
+        }
+
+        .dashboard-btn {
+            padding: 10px 16px;
+            border-radius: 10px;
+            border: 1px solid rgba(255,255,255,0.12);
+            background: rgba(255,255,255,0.05);
+            color: #dce5ea;
+            font-size: 14px;
+            font-weight: 600;
+            transition: 0.2s;
+        }
+
+        .dashboard-btn:hover {
+            background: rgba(25,230,140,0.12);
+            border-color: rgba(25,230,140,0.35);
+            color: #fff;
+        }
+
+        /* =========================
+           HEADER
+        ========================= */
+
+        .page-header {
+            padding: 34px 0 20px;
+        }
+
+        .page-header h1 {
+            font-size: 30px;
+            font-weight: 800;
+            margin-bottom: 7px;
+        }
+
+        .page-header p {
+            color: #8997a1;
+            font-size: 14px;
+        }
+
+        /* =========================
+           MATCH CARD
+        ========================= */
+
+        .match-card {
             position: relative;
+            overflow: hidden;
+            border-radius: 18px;
+            border: 1px solid rgba(255,255,255,0.09);
+            background:
+                linear-gradient(135deg, rgba(15,28,35,0.98), rgba(9,18,25,0.98));
+            padding: 30px;
+            margin-bottom: 20px;
         }
 
-        .match-hero::after {
+        .match-card::before {
             content: "";
             position: absolute;
-            width: 320px;
-            height: 320px;
-            right: -130px;
-            top: -180px;
-            border-radius: 50%;
-            background: rgba(25,118,255,0.12);
-            filter: blur(20px);
+            width: 260px;
+            height: 260px;
+            background: rgba(25,230,140,0.08);
+            filter: blur(70px);
+            top: -150px;
+            left: -80px;
+            pointer-events: none;
         }
 
-        .league {
-            display: inline-flex;
-            padding: 7px 12px;
+        .match-meta {
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 28px;
+        }
+
+        .badge {
+            padding: 7px 11px;
             border-radius: 999px;
             background: rgba(255,255,255,0.06);
-            border: 1px solid rgba(255,255,255,0.07);
-            color: #aeb7c7;
+            border: 1px solid rgba(255,255,255,0.08);
+            color: #aab7bf;
             font-size: 12px;
-            font-weight: 700;
-            margin-bottom: 24px;
+            font-weight: 600;
+        }
+
+        .badge.league {
+            background: rgba(25,230,140,0.10);
+            color: #5df0ae;
+            border-color: rgba(25,230,140,0.18);
         }
 
         .teams {
+            position: relative;
             display: grid;
             grid-template-columns: 1fr auto 1fr;
             align-items: center;
@@ -137,595 +162,571 @@
         }
 
         .team {
-            font-size: clamp(25px, 4vw, 43px);
-            font-weight: 900;
-            letter-spacing: -1.5px;
-            line-height: 1.05;
+            text-align: center;
         }
 
-        .team.away {
-            text-align: right;
+        .team-label {
+            font-size: 12px;
+            color: #7e8d97;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 9px;
+        }
+
+        .team-name {
+            font-size: clamp(22px, 4vw, 34px);
+            font-weight: 800;
+            line-height: 1.15;
         }
 
         .vs {
             width: 62px;
             height: 62px;
-            border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
+            border-radius: 50%;
             background: rgba(255,255,255,0.055);
-            border: 1px solid rgba(255,255,255,0.09);
-            color: #788396;
-            font-size: 14px;
-            font-weight: 900;
-        }
-
-        .match-meta {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            gap: 10px;
-            margin-top: 22px;
-            color: #8d98aa;
-            font-size: 13px;
-        }
-
-        .match-meta strong {
-            color: #f5f7fb;
-        }
-
-        .prediction {
-            margin-top: 18px;
-            padding: 18px 22px;
-            border-radius: 18px;
-            border: 1px solid rgba(22,227,154,0.17);
-            background: linear-gradient(
-                90deg,
-                rgba(22,227,154,0.07),
-                rgba(25,118,255,0.05)
-            );
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 20px;
-        }
-
-        .prediction-label {
-            color: #8490a3;
-            font-size: 11px;
-            text-transform: uppercase;
-            letter-spacing: 1.5px;
+            border: 1px solid rgba(255,255,255,0.1);
+            color: #91a0a9;
+            font-size: 15px;
             font-weight: 800;
         }
 
-        .prediction-value {
-            color: #55efb5;
-            font-size: 25px;
-            font-weight: 900;
-            margin-top: 5px;
-        }
-
-        .prediction-icon {
-            width: 46px;
-            height: 46px;
-            border-radius: 14px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: rgba(22,227,154,0.10);
-            font-size: 21px;
-        }
-
-        .section {
-            margin-top: 22px;
-        }
-
-        .section-title {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            margin-bottom: 12px;
-        }
-
-        .section-title h2 {
-            font-size: 16px;
-            font-weight: 900;
-        }
-
-        .section-title span {
-            color: #697487;
-            font-size: 12px;
-        }
-
-        .ai-overview {
-            display: grid;
-            grid-template-columns: 1.35fr 1fr 1fr 1fr;
-            gap: 12px;
-        }
-
-        .score-main,
-        .kpi {
-            border-radius: 20px;
-            border: 1px solid rgba(255,255,255,0.07);
-            background: rgba(17,22,31,0.90);
-            box-shadow: 0 15px 45px rgba(0,0,0,0.20);
-        }
-
-        .score-main {
-            min-height: 190px;
-            padding: 23px;
+        .match-date {
             position: relative;
-            overflow: hidden;
-            border-color: rgba(22,227,154,0.16);
-            background:
-                radial-gradient(circle at 85% 15%, rgba(22,227,154,0.12), transparent 40%),
-                rgba(17,22,31,0.94);
-        }
-
-        .score-main::after {
-            content: "";
-            position: absolute;
-            right: -60px;
-            bottom: -90px;
-            width: 190px;
-            height: 190px;
-            border-radius: 50%;
-            border: 35px solid rgba(22,227,154,0.035);
-        }
-
-        .score-label {
-            color: #8c96a8;
-            font-size: 11px;
-            text-transform: uppercase;
-            letter-spacing: 1.7px;
-            font-weight: 800;
-        }
-
-        .score-content {
-            display: flex;
-            align-items: center;
-            gap: 20px;
-            margin-top: 15px;
-        }
-
-        .score-number {
-            font-size: 64px;
-            line-height: 1;
-            font-weight: 950;
-            letter-spacing: -4px;
-            color: #ffffff;
-        }
-
-        .score-number small {
-            font-size: 20px;
-            letter-spacing: 0;
-            color: #6e798c;
-        }
-
-        .score-info {
-            flex: 1;
-        }
-
-        .score-status {
-            font-size: 13px;
-            font-weight: 800;
-            color: #55efb5;
-            margin-bottom: 10px;
-        }
-
-        .score-bar {
-            height: 8px;
-            border-radius: 999px;
-            background: rgba(255,255,255,0.07);
-            overflow: hidden;
-        }
-
-        .score-fill {
-            height: 100%;
-            width: {{ ai_score }}%;
-            border-radius: inherit;
-            background: linear-gradient(90deg, #16e39a, #2b8cff);
-        }
-
-        .score-caption {
-            color: #697487;
-            font-size: 10px;
-            margin-top: 9px;
-        }
-
-        .kpi {
-            min-height: 190px;
-            padding: 22px;
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-        }
-
-        .kpi-label {
-            color: #7f899b;
-            font-size: 11px;
-            text-transform: uppercase;
-            letter-spacing: 1.3px;
-            font-weight: 800;
-        }
-
-        .kpi-value {
-            font-size: 31px;
-            font-weight: 900;
-            letter-spacing: -1px;
-            margin-top: 15px;
-        }
-
-        .kpi-sub {
-            color: #606b7c;
-            font-size: 10px;
-            margin-top: 7px;
-        }
-
-        .kpi-fiducia .kpi-value {
-            color: #55efb5;
-        }
-
-        .kpi-value-index .kpi-value {
-            color: #72a9ff;
-        }
-
-        .kpi-rischio .kpi-value {
-            color: #ffd36b;
-            font-size: 23px;
-        }
-
-        .form-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 12px;
-        }
-
-        .form-card {
-            padding: 20px;
-            border-radius: 18px;
-            border: 1px solid rgba(255,255,255,0.07);
-            background: rgba(17,22,31,0.86);
-        }
-
-        .form-team {
+            text-align: center;
+            margin-top: 22px;
+            color: #a9b6be;
             font-size: 14px;
-            font-weight: 900;
-            margin-bottom: 15px;
         }
 
-        .form-stats {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 8px;
-        }
+        /* =========================
+           PRONOSTICO
+        ========================= */
 
-        .form-stat {
-            background: rgba(255,255,255,0.035);
-            border-radius: 12px;
-            padding: 11px 8px;
+        .prediction-card {
+            border-radius: 18px;
+            border: 1px solid rgba(25,230,140,0.23);
+            background:
+                linear-gradient(135deg, rgba(16,45,35,0.72), rgba(10,25,30,0.95));
+            padding: 25px;
+            margin-bottom: 20px;
             text-align: center;
         }
 
-        .form-stat strong {
-            display: block;
-            font-size: 17px;
+        .prediction-title {
+            color: #8d9da6;
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            margin-bottom: 9px;
         }
 
-        .form-stat span {
-            display: block;
-            color: #6f7a8d;
-            font-size: 9px;
-            margin-top: 4px;
+        .prediction-value {
+            font-size: clamp(28px, 5vw, 42px);
+            font-weight: 900;
+            color: #4cf2a5;
+            margin-bottom: 8px;
         }
 
-        .indicators {
+        .prediction-sub {
+            color: #a8b5bc;
+            font-size: 13px;
+        }
+
+        /* =========================
+           SECTION
+        ========================= */
+
+        .section {
+            margin-bottom: 20px;
+        }
+
+        .section-title {
+            font-size: 18px;
+            font-weight: 800;
+            margin-bottom: 13px;
+        }
+
+        /* =========================
+           KPI
+        ========================= */
+
+        .kpi-grid {
             display: grid;
-            grid-template-columns: 1fr 1fr;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 13px;
+        }
+
+        .kpi {
+            min-height: 120px;
+            border-radius: 15px;
+            padding: 19px;
+            border: 1px solid rgba(255,255,255,0.08);
+            background: #0d151b;
+        }
+
+        .kpi-label {
+            color: #7f8e98;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            margin-bottom: 13px;
+        }
+
+        .kpi-value {
+            font-size: 29px;
+            font-weight: 850;
+        }
+
+        .kpi.green .kpi-value {
+            color: #46ed9f;
+        }
+
+        .kpi.blue .kpi-value {
+            color: #58b8ff;
+        }
+
+        .kpi.yellow .kpi-value {
+            color: #f4ca61;
+        }
+
+        .kpi.risk-low {
+            border-color: rgba(25,230,140,0.20);
+        }
+
+        .kpi.risk-low .kpi-value {
+            color: #46ed9f;
+        }
+
+        .kpi.risk-medium .kpi-value {
+            color: #f4ca61;
+        }
+
+        .kpi.risk-high .kpi-value {
+            color: #ff6d6d;
+        }
+
+        /* =========================
+           FORMA
+        ========================= */
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+        }
+
+        .team-stats {
+            background: #0d151b;
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 15px;
+            padding: 21px;
+        }
+
+        .team-stats-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
             gap: 10px;
+            margin-bottom: 17px;
+        }
+
+        .team-stats-name {
+            font-size: 18px;
+            font-weight: 800;
+        }
+
+        .form-chips {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+
+        .form-chip {
+            min-width: 30px;
+            height: 28px;
+            padding: 0 8px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 8px;
+            font-size: 11px;
+            font-weight: 800;
+        }
+
+        .form-v {
+            color: #56efa5;
+            background: rgba(25,230,140,0.12);
+            border: 1px solid rgba(25,230,140,0.18);
+        }
+
+        .form-p {
+            color: #f3c85c;
+            background: rgba(243,200,92,0.10);
+            border: 1px solid rgba(243,200,92,0.17);
+        }
+
+        .form-s {
+            color: #ff7373;
+            background: rgba(255,100,100,0.10);
+            border: 1px solid rgba(255,100,100,0.16);
+        }
+
+        .stats-list {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 9px;
+        }
+
+        .stat {
+            padding: 11px;
+            border-radius: 10px;
+            background: rgba(255,255,255,0.035);
+        }
+
+        .stat-label {
+            display: block;
+            color: #71808a;
+            font-size: 10px;
+            text-transform: uppercase;
+            margin-bottom: 5px;
+        }
+
+        .stat-value {
+            font-size: 15px;
+            font-weight: 750;
+            color: #dce4e8;
+        }
+
+        /* =========================
+           INDICATORI
+        ========================= */
+
+        .indicator-card {
+            background: #0d151b;
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 15px;
+            padding: 21px;
         }
 
         .indicator {
-            padding: 15px 17px;
-            border-radius: 15px;
-            background: rgba(17,22,31,0.86);
-            border: 1px solid rgba(255,255,255,0.06);
+            margin-bottom: 18px;
+        }
+
+        .indicator:last-child {
+            margin-bottom: 0;
         }
 
         .indicator-top {
             display: flex;
             justify-content: space-between;
-            align-items: center;
             gap: 15px;
+            margin-bottom: 8px;
         }
 
         .indicator-name {
-            color: #c5cbd5;
-            font-size: 12px;
-            font-weight: 700;
-        }
-
-        .indicator-number {
             font-size: 13px;
-            font-weight: 900;
-            color: #55efb5;
+            color: #b8c4ca;
+            font-weight: 650;
         }
 
-        .bar {
-            height: 6px;
-            background: rgba(255,255,255,0.06);
+        .indicator-value {
+            font-size: 13px;
+            font-weight: 800;
+            color: #58eaa4;
+        }
+
+        .progress {
+            width: 100%;
+            height: 8px;
             border-radius: 999px;
+            background: rgba(255,255,255,0.06);
             overflow: hidden;
-            margin-top: 10px;
         }
 
-        .bar-fill {
+        .progress-bar {
             height: 100%;
             border-radius: inherit;
-            background: linear-gradient(90deg, #16e39a, #2587ff);
+            background: linear-gradient(90deg, #18c77d, #49e9a1);
         }
 
-        .market-category {
-            margin-bottom: 13px;
-        }
+        /* =========================
+           MERCATI
+        ========================= */
 
-        .market-category-title {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            color: #8d98aa;
-            font-size: 11px;
-            font-weight: 900;
-            text-transform: uppercase;
-            letter-spacing: 1.2px;
-            margin: 14px 3px 8px;
-        }
-
-        .markets {
+        .markets-grid {
             display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 10px;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
         }
 
-        .market {
-            padding: 15px;
-            border-radius: 16px;
-            background: rgba(17,22,31,0.88);
-            border: 1px solid rgba(255,255,255,0.06);
+        .market-group {
+            background: #0d151b;
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 15px;
+            padding: 20px;
         }
 
-        .market-head {
+        .market-group h3 {
+            font-size: 14px;
+            color: #d8e0e4;
+            margin-bottom: 14px;
+        }
+
+        .market-list {
+            display: grid;
+            gap: 8px;
+        }
+
+        .market-row {
             display: flex;
-            justify-content: space-between;
             align-items: center;
-            gap: 10px;
+            justify-content: space-between;
+            gap: 15px;
+            padding: 10px 12px;
+            border-radius: 9px;
+            background: rgba(255,255,255,0.035);
         }
 
         .market-name {
+            color: #9aa8b0;
             font-size: 12px;
-            font-weight: 800;
-            color: #d8dde6;
         }
 
         .market-prob {
-            font-size: 14px;
-            font-weight: 900;
-            color: #ffffff;
-        }
-
-        .market-bar {
-            margin-top: 11px;
-            height: 6px;
-            background: rgba(255,255,255,0.06);
-            border-radius: 999px;
-            overflow: hidden;
-        }
-
-        .market-fill {
-            height: 100%;
-            border-radius: inherit;
-            background: linear-gradient(90deg, #16e39a, #2788ff);
-        }
-
-        .scores {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 10px;
-        }
-
-        .score-card {
-            padding: 18px;
-            text-align: center;
-            border-radius: 16px;
-            background: rgba(17,22,31,0.88);
-            border: 1px solid rgba(255,255,255,0.06);
-        }
-
-        .score-result {
-            font-size: 22px;
-            font-weight: 900;
-        }
-
-        .score-prob {
-            color: #55efb5;
             font-size: 13px;
             font-weight: 800;
-            margin-top: 6px;
+            color: #dce5e9;
         }
 
-        .scorers {
+        .market-row.highlight {
+            border: 1px solid rgba(25,230,140,0.18);
+            background: rgba(25,230,140,0.07);
+        }
+
+        .market-row.highlight .market-name,
+        .market-row.highlight .market-prob {
+            color: #55efa5;
+        }
+
+        /* =========================
+           ESATTI
+        ========================= */
+
+        .exact-grid {
             display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 12px;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 13px;
         }
 
-        .scorer-team {
+        .exact-card {
             padding: 20px;
-            border-radius: 18px;
-            background: rgba(17,22,31,0.88);
-            border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 15px;
+            background: #0d151b;
+            border: 1px solid rgba(255,255,255,0.08);
+            text-align: center;
         }
 
-        .scorer-team-title {
-            font-size: 13px;
+        .exact-score {
+            font-size: 27px;
             font-weight: 900;
+            margin-bottom: 7px;
+        }
+
+        .exact-prob {
+            color: #56eaa3;
+            font-size: 14px;
+            font-weight: 750;
+        }
+
+        .exact-card:first-child {
+            border-color: rgba(25,230,140,0.22);
+            background: linear-gradient(
+                135deg,
+                rgba(25,230,140,0.08),
+                rgba(13,21,27,1)
+            );
+        }
+
+        /* =========================
+           MARCATORI
+        ========================= */
+
+        .scorers-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+        }
+
+        .scorer-card {
+            background: #0d151b;
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 15px;
+            padding: 20px;
+        }
+
+        .scorer-title {
+            font-size: 14px;
+            font-weight: 800;
             margin-bottom: 13px;
         }
 
-        .scorer {
-            display: grid;
-            grid-template-columns: 1fr auto;
-            gap: 10px;
+        .scorer-row {
+            display: flex;
             align-items: center;
-            padding: 11px 0;
-            border-bottom: 1px solid rgba(255,255,255,0.05);
+            justify-content: space-between;
+            gap: 15px;
+            padding: 10px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.06);
         }
 
-        .scorer:last-child {
+        .scorer-row:last-child {
             border-bottom: 0;
         }
 
         .scorer-name {
             font-size: 12px;
-            font-weight: 700;
-        }
-
-        .scorer-details {
-            color: #6e798c;
-            font-size: 9px;
-            margin-top: 4px;
+            color: #aebbc2;
         }
 
         .scorer-prob {
-            color: #55efb5;
-            font-size: 13px;
-            font-weight: 900;
+            font-size: 12px;
+            font-weight: 800;
+            color: #55eaa2;
         }
+
+        /* =========================
+           FOOTER
+        ========================= */
 
         footer {
             text-align: center;
-            color: #4e5869;
-            font-size: 10px;
-            margin-top: 35px;
-            letter-spacing: 0.5px;
+            color: #58666f;
+            font-size: 11px;
+            padding: 28px 0 35px;
         }
+
+        /* =========================
+           RESPONSIVE
+        ========================= */
 
         @media (max-width: 850px) {
-
-            .ai-overview {
-                grid-template-columns: 1fr 1fr;
+            .kpi-grid {
+                grid-template-columns: repeat(2, 1fr);
             }
 
-            .score-main {
-                grid-column: span 2;
-            }
-
-            .markets {
-                grid-template-columns: 1fr 1fr;
+            .markets-grid {
+                grid-template-columns: 1fr;
             }
         }
 
-        @media (max-width: 620px) {
-
+        @media (max-width: 650px) {
             .container {
-                width: 92%;
-                padding-top: 18px;
+                width: min(100% - 20px, 1180px);
             }
 
-            header {
-                margin-bottom: 18px;
+            .topbar-inner {
+                min-height: 60px;
             }
 
-            .brand-text h1 {
+            .logo {
+                font-size: 21px;
+            }
+
+            .page-header {
+                padding-top: 25px;
+            }
+
+            .page-header h1 {
+                font-size: 25px;
+            }
+
+            .match-card {
+                padding: 22px 15px;
+            }
+
+            .teams {
+                gap: 10px;
+            }
+
+            .team-name {
                 font-size: 20px;
             }
 
-            .ai-badge {
-                display: none;
+            .vs {
+                width: 48px;
+                height: 48px;
+                font-size: 12px;
             }
 
-            .match-hero {
-                padding: 21px;
-                border-radius: 21px;
+            .prediction-card {
+                padding: 22px 15px;
+            }
+
+            .prediction-value {
+                font-size: 30px;
+            }
+
+            .kpi-grid {
+                grid-template-columns: 1fr 1fr;
+                gap: 9px;
+            }
+
+            .kpi {
+                min-height: 105px;
+                padding: 14px;
+            }
+
+            .kpi-value {
+                font-size: 23px;
+            }
+
+            .form-grid,
+            .scorers-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .stats-list {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .exact-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .exact-card {
+                padding: 17px;
+            }
+        }
+
+        @media (max-width: 420px) {
+            .kpi-grid {
+                grid-template-columns: 1fr;
             }
 
             .teams {
                 grid-template-columns: 1fr;
-                gap: 12px;
-                text-align: center;
-            }
-
-            .team,
-            .team.away {
-                text-align: center;
-                font-size: 28px;
+                gap: 13px;
             }
 
             .vs {
-                width: 45px;
-                height: 45px;
                 margin: 0 auto;
-                font-size: 11px;
+            }
+
+            .team-name {
+                font-size: 22px;
             }
 
             .match-meta {
-                flex-wrap: wrap;
+                gap: 5px;
             }
 
-            .prediction {
-                padding: 15px;
-            }
-
-            .prediction-value {
-                font-size: 20px;
-            }
-
-            .ai-overview {
-                grid-template-columns: 1fr 1fr;
-            }
-
-            .score-main {
-                grid-column: span 2;
-            }
-
-            .score-content {
-                gap: 15px;
-            }
-
-            .score-number {
-                font-size: 55px;
-            }
-
-            .kpi {
-                min-height: 145px;
-                padding: 17px;
-            }
-
-            .kpi-value {
-                font-size: 25px;
-            }
-
-            .form-grid,
-            .indicators,
-            .scorers {
-                grid-template-columns: 1fr;
-            }
-
-            .markets {
-                grid-template-columns: 1fr;
-            }
-
-            .scores {
-                grid-template-columns: 1fr 1fr 1fr;
-            }
-
-            .score-card {
-                padding: 13px 5px;
-            }
-
-            .score-result {
-                font-size: 18px;
+            .badge {
+                font-size: 10px;
+                padding: 6px 8px;
             }
         }
     </style>
@@ -733,88 +734,143 @@
 
 <body>
 
-<div class="container">
+<header class="topbar">
+    <div class="container topbar-inner">
+        <a href="/" class="logo">
+            Calcio<span>AI</span>
+        </a>
 
-    <header>
-
-        <div class="brand">
-
-            <div class="brand-ball">
-                ⚽
-            </div>
-
-            <div class="brand-text">
-
-                <h1>
-                    CalcioAI
-                </h1>
-
-                <span>
-                    AI FOOTBALL ENGINE
-                </span>
-
-            </div>
-
-        </div>
-
-        <div class="ai-badge">
-            ● ANALISI AI
-        </div>
-
-    </header>
+        <a href="/" class="dashboard-btn">
+            ← Dashboard
+        </a>
+    </div>
+</header>
 
 
-    <section class="match-hero">
+<main class="container">
 
-        <div class="league">
-            🏆 {{ lega }}
+    <div class="page-header">
+        <h1>Analisi AI</h1>
+        <p>Analisi completa della partita elaborata dal motore CalcioAI.</p>
+    </div>
+
+
+    <!-- =========================
+         PARTITA
+    ========================== -->
+
+    <section class="match-card">
+
+        <div class="match-meta">
+
+            {% if lega %}
+                <span class="badge league">{{ lega }}</span>
+            {% endif %}
+
+            {% if paese %}
+                <span class="badge">{{ paese }}</span>
+            {% endif %}
+
+            {% if ora %}
+                <span class="badge">🕐 {{ ora }}</span>
+            {% endif %}
+
         </div>
 
         <div class="teams">
 
-            <div class="team home">
-                {{ casa }}
+            <div class="team">
+                <div class="team-label">Casa</div>
+                <div class="team-name">{{ casa }}</div>
             </div>
 
             <div class="vs">
                 VS
             </div>
 
-            <div class="team away">
-                {{ trasferta }}
+            <div class="team">
+                <div class="team-label">Trasferta</div>
+                <div class="team-name">{{ trasferta }}</div>
             </div>
 
         </div>
 
-        <div class="match-meta">
-
-            <span>
-                🕐 <strong>{{ ora }}</strong>
-            </span>
-
-            {% if paese %}
-                <span>•</span>
-                <span>{{ paese }}</span>
-            {% endif %}
-
+        <div class="match-date">
+            {{ data_test }}
         </div>
 
-        <div class="prediction">
+    </section>
 
-            <div>
 
-                <div class="prediction-label">
-                    Pronostico AI
+    <!-- =========================
+         PRONOSTICO
+    ========================== -->
+
+    <section class="prediction-card">
+
+        <div class="prediction-title">
+            Pronostico AI
+        </div>
+
+        <div class="prediction-value">
+            {{ pronostico if pronostico else "Nessun pronostico" }}
+        </div>
+
+        <div class="prediction-sub">
+            Elaborato dal Decision Engine CalcioAI
+        </div>
+
+    </section>
+
+
+    <!-- =========================
+         AI OVERVIEW
+    ========================== -->
+
+    <section class="section">
+
+        <div class="section-title">
+            AI Overview
+        </div>
+
+        <div class="kpi-grid">
+
+            <div class="kpi green">
+                <div class="kpi-label">AI Score</div>
+                <div class="kpi-value">
+                    {{ numero(ai_score) }}%
                 </div>
-
-                <div class="prediction-value">
-                    {{ pronostico }}
-                </div>
-
             </div>
 
-            <div class="prediction-icon">
-                🤖
+            <div class="kpi blue">
+                <div class="kpi-label">Fiducia</div>
+                <div class="kpi-value">
+                    {{ numero(fiducia) }}%
+                </div>
+            </div>
+
+            <div class="kpi yellow">
+                <div class="kpi-label">Value Index</div>
+                <div class="kpi-value">
+                    {{ numero(value_index) }}
+                </div>
+            </div>
+
+            {% set rischio_lower = (rischio|string)|lower %}
+
+            <div class="kpi
+                {% if 'basso' in rischio_lower %}
+                    risk-low
+                {% elif 'medio' in rischio_lower %}
+                    risk-medium
+                {% else %}
+                    risk-high
+                {% endif %}
+            ">
+                <div class="kpi-label">Rischio</div>
+                <div class="kpi-value">
+                    {{ rischio }}
+                </div>
             </div>
 
         </div>
@@ -822,293 +878,151 @@
     </section>
 
 
-    <section class="section">
-
-        <div class="section-title">
-
-            <h2>
-                ⚡ Valutazione AI
-            </h2>
-
-            <span>
-                Indicatori principali
-            </span>
-
-        </div>
-
-        <div class="ai-overview">
-
-            <div class="score-main">
-
-                <div class="score-label">
-                    AI Score
-                </div>
-
-                <div class="score-content">
-
-                    <div class="score-number">
-                        {{ ai_score }}<small>/100</small>
-                    </div>
-
-                    <div class="score-info">
-
-                        <div class="score-status">
-                            Analisi del modello
-                        </div>
-
-                        <div class="score-bar">
-
-                            <div
-                                class="score-fill"
-                                style="width: {{ ai_score }}%;"
-                            ></div>
-
-                        </div>
-
-                        <div class="score-caption">
-                            Punteggio complessivo generato dal motore CalcioAI
-                        </div>
-
-                    </div>
-
-                </div>
-
-            </div>
-
-
-            <div class="kpi kpi-fiducia">
-
-                <div class="kpi-label">
-                    Fiducia
-                </div>
-
-                <div>
-
-                    <div class="kpi-value">
-                        {{ fiducia }}%
-                    </div>
-
-                    <div class="score-bar">
-
-                        <div
-                            class="score-fill"
-                            style="width: {{ fiducia }}%;"
-                        ></div>
-
-                    </div>
-
-                    <div class="kpi-sub">
-                        Confidenza del pronostico
-                    </div>
-
-                </div>
-
-            </div>
-
-
-            <div class="kpi kpi-value-index">
-
-                <div class="kpi-label">
-                    Value Index
-                </div>
-
-                <div>
-
-                    <div class="kpi-value">
-                        {{ value_index }}
-                    </div>
-
-                    <div class="score-bar">
-
-                        <div
-                            class="score-fill"
-                            style="width: {{ value_index }}%;"
-                        ></div>
-
-                    </div>
-
-                    <div class="kpi-sub">
-                        Valore stimato
-                    </div>
-
-                </div>
-
-            </div>
-
-
-            <div class="kpi kpi-rischio">
-
-                <div class="kpi-label">
-                    Rischio
-                </div>
-
-                <div>
-
-                    <div class="kpi-value">
-                        {{ rischio }}
-                    </div>
-
-                    <div class="kpi-sub">
-                        Indicazione del modello
-                    </div>
-
-                </div>
-
-            </div>
-
-        </div>
-
-    </section>
-
+    <!-- =========================
+         FORMA RECENTE
+    ========================== -->
 
     <section class="section">
 
         <div class="section-title">
-
-            <h2>
-                📈 Forma recente
-            </h2>
-
-            <span>
-                Ultime partite analizzate
-            </span>
-
+            Forma recente
         </div>
 
         <div class="form-grid">
 
-            <div class="form-card">
+            {% for nome_squadra, stats in [
+                (casa, statistiche_casa),
+                (trasferta, statistiche_trasferta)
+            ] %}
 
-                <div class="form-team">
-                    {{ casa }}
+            <div class="team-stats">
+
+                <div class="team-stats-header">
+                    <div class="team-stats-name">
+                        {{ nome_squadra }}
+                    </div>
+
+                    <div class="form-chips">
+
+                        {% set forma = stats.get("forma", "")|string %}
+
+                        {% for token in forma.split() %}
+
+                            {% set risultato = token|replace("0","")|replace("1","")|replace("2","")|replace("3","")|replace("4","")|replace("5","")|replace("6","")|replace("7","")|replace("8","")|replace("9","") %}
+
+                            {% if risultato == "V" %}
+                                <span class="form-chip form-v">V</span>
+
+                            {% elif risultato == "P" %}
+                                <span class="form-chip form-p">P</span>
+
+                            {% elif risultato == "S" %}
+                                <span class="form-chip form-s">S</span>
+
+                            {% endif %}
+
+                        {% endfor %}
+
+                    </div>
                 </div>
 
-                <div class="form-stats">
 
-                    <div class="form-stat">
-                        <strong>{{ statistiche_casa.get("vittorie", statistiche_casa.get("vinte", "-")) }}</strong>
-                        <span>VITTORIE</span>
+                <div class="stats-list">
+
+                    <div class="stat">
+                        <span class="stat-label">Vittorie</span>
+                        <span class="stat-value">
+                            {{ stats.get("vittorie", 0) }}
+                        </span>
                     </div>
 
-                    <div class="form-stat">
-                        <strong>{{ statistiche_casa.get("pareggi", "-") }}</strong>
-                        <span>PAREGGI</span>
+                    <div class="stat">
+                        <span class="stat-label">Pareggi</span>
+                        <span class="stat-value">
+                            {{ stats.get("pareggi", 0) }}
+                        </span>
                     </div>
 
-                    <div class="form-stat">
-                        <strong>{{ statistiche_casa.get("sconfitte", statistiche_casa.get("perse", "-")) }}</strong>
-                        <span>SCONFITTE</span>
+                    <div class="stat">
+                        <span class="stat-label">Sconfitte</span>
+                        <span class="stat-value">
+                            {{ stats.get("sconfitte", 0) }}
+                        </span>
                     </div>
 
-                    <div class="form-stat">
-                        <strong>{{ statistiche_casa.get("gol_fatti", statistiche_casa.get("gf", "-")) }}</strong>
-                        <span>GOL FATTI</span>
+                    <div class="stat">
+                        <span class="stat-label">Gol fatti</span>
+                        <span class="stat-value">
+                            {{ stats.get("gol_fatti", 0) }}
+                        </span>
                     </div>
 
-                    <div class="form-stat">
-                        <strong>{{ statistiche_casa.get("gol_subiti", statistiche_casa.get("ga", "-")) }}</strong>
-                        <span>GOL SUBITI</span>
+                    <div class="stat">
+                        <span class="stat-label">Gol subiti</span>
+                        <span class="stat-value">
+                            {{ stats.get("gol_subiti", 0) }}
+                        </span>
                     </div>
 
-                    <div class="form-stat">
-                        <strong>{{ statistiche_casa.get("over15", "-") }}%</strong>
-                        <span>OVER 1.5</span>
+                    <div class="stat">
+                        <span class="stat-label">Over 1.5</span>
+                        <span class="stat-value">
+                            {{ numero(stats.get("over15", 0)) }}%
+                        </span>
                     </div>
 
                 </div>
 
             </div>
 
-
-            <div class="form-card">
-
-                <div class="form-team">
-                    {{ trasferta }}
-                </div>
-
-                <div class="form-stats">
-
-                    <div class="form-stat">
-                        <strong>{{ statistiche_trasferta.get("vittorie", statistiche_trasferta.get("vinte", "-")) }}</strong>
-                        <span>VITTORIE</span>
-                    </div>
-
-                    <div class="form-stat">
-                        <strong>{{ statistiche_trasferta.get("pareggi", "-") }}</strong>
-                        <span>PAREGGI</span>
-                    </div>
-
-                    <div class="form-stat">
-                        <strong>{{ statistiche_trasferta.get("sconfitte", statistiche_trasferta.get("perse", "-")) }}</strong>
-                        <span>SCONFITTE</span>
-                    </div>
-
-                    <div class="form-stat">
-                        <strong>{{ statistiche_trasferta.get("gol_fatti", statistiche_trasferta.get("gf", "-")) }}</strong>
-                        <span>GOL FATTI</span>
-                    </div>
-
-                    <div class="form-stat">
-                        <strong>{{ statistiche_trasferta.get("gol_subiti", statistiche_trasferta.get("ga", "-")) }}</strong>
-                        <span>GOL SUBITI</span>
-                    </div>
-
-                    <div class="form-stat">
-                        <strong>{{ statistiche_trasferta.get("over15", "-") }}%</strong>
-                        <span>OVER 1.5</span>
-                    </div>
-
-                </div>
-
-            </div>
+            {% endfor %}
 
         </div>
 
     </section>
 
 
+    <!-- =========================
+         INDICATORI AI
+    ========================== -->
+
     <section class="section">
 
         <div class="section-title">
-
-            <h2>
-                🧠 Indicatori AI
-            </h2>
-
-            <span>
-                Segnali statistici
-            </span>
-
+            Indicatori AI
         </div>
 
-        <div class="indicators">
+        <div class="indicator-card">
 
-            {% for nome, valore in indicatori.items() %}
+            {% set indicatori_data = [
+                ("Over 1.5", indicatori.get("over15", 0)),
+                ("Over 2.5", indicatori.get("over25", 0)),
+                ("Goal / Goal", indicatori.get("golgol", 0)),
+                ("Under 3.5", indicatori.get("under35", 0))
+            ] %}
 
-                <div class="indicator">
+            {% for nome, valore in indicatori_data %}
 
-                    <div class="indicator-top">
+            <div class="indicator">
 
-                        <div class="indicator-name">
-                            {{ nome }}
-                        </div>
+                <div class="indicator-top">
+                    <span class="indicator-name">
+                        {{ nome }}
+                    </span>
 
-                        <div class="indicator-number">
-                            {{ valore }}%
-                        </div>
-
-                    </div>
-
-                    <div class="bar">
-
-                        <div
-                            class="bar-fill"
-                            style="width: {{ valore }}%;"
-                        ></div>
-
-                    </div>
-
+                    <span class="indicator-value">
+                        {{ numero(valore) }}%
+                    </span>
                 </div>
+
+                <div class="progress">
+                    <div
+                        class="progress-bar"
+                        style="width: {{ valore|float }}%;"
+                    ></div>
+                </div>
+
+            </div>
 
             {% endfor %}
 
@@ -1119,185 +1033,149 @@
 
     <!-- =========================
          MERCATI AI
-    ========================= -->
+    ========================== -->
 
-    <section class="section" id="mercati">
+    <section class="section">
 
         <div class="section-title">
-
-            <h2>
-                🎯 Mercati AI
-            </h2>
-
-            <span>
-                Probabilità elaborate dal motore
-            </span>
-
+            Mercati AI
         </div>
 
+        <div class="markets-grid">
 
-        <div class="market-category">
 
-            <div class="market-category-title">
-                🏆 Esito partita
-            </div>
+            <!-- ESITO -->
+            <div class="market-group">
 
-            <div class="markets">
+                <h3>Esito partita</h3>
 
-                {% for mercato in ["1", "X", "2"] %}
+                <div class="market-list">
 
-                    <div class="market">
+                    {% for mercato in ["1", "X", "2"] %}
 
-                        <div class="market-head">
+                    {% set valore = mercati.get(mercato, 0) %}
 
-                            <div class="market-name">
-                                {{ mercato }}
-                            </div>
+                    <div class="market-row
+                        {% if pronostico == mercato %}
+                            highlight
+                        {% endif %}
+                    ">
 
-                            <div class="market-prob">
-                                {{ mercati[mercato] }}%
-                            </div>
+                        <span class="market-name">
+                            {{ mercato }}
+                        </span>
 
-                        </div>
-
-                        <div class="market-bar">
-
-                            <div
-                                class="market-fill"
-                                style="width: {{ mercati[mercato] }}%;"
-                            ></div>
-
-                        </div>
+                        <span class="market-prob">
+                            {{ numero(valore) }}%
+                        </span>
 
                     </div>
 
-                {% endfor %}
+                    {% endfor %}
+
+                </div>
 
             </div>
 
-        </div>
 
+            <!-- TOTALI GOL -->
+            <div class="market-group">
 
-        <div class="market-category">
+                <h3>Totale gol</h3>
 
-            <div class="market-category-title">
-                ⚽ Gol - Over / Under
-            </div>
+                <div class="market-list">
 
-            <div class="markets">
+                    {% for mercato in ["Over 1.5", "Over 2.5", "Under 3.5"] %}
 
-                {% for mercato in ["Over 1.5", "Over 2.5", "Under 3.5"] %}
+                    {% set valore = mercati.get(mercato, 0) %}
 
-                    <div class="market">
+                    <div class="market-row
+                        {% if pronostico == mercato %}
+                            highlight
+                        {% endif %}
+                    ">
 
-                        <div class="market-head">
+                        <span class="market-name">
+                            {{ mercato }}
+                        </span>
 
-                            <div class="market-name">
-                                {{ mercato }}
-                            </div>
-
-                            <div class="market-prob">
-                                {{ mercati[mercato] }}%
-                            </div>
-
-                        </div>
-
-                        <div class="market-bar">
-
-                            <div
-                                class="market-fill"
-                                style="width: {{ mercati[mercato] }}%;"
-                            ></div>
-
-                        </div>
+                        <span class="market-prob">
+                            {{ numero(valore) }}%
+                        </span>
 
                     </div>
 
-                {% endfor %}
+                    {% endfor %}
+
+                </div>
 
             </div>
 
-        </div>
 
+            <!-- GOAL -->
+            <div class="market-group">
 
-        <div class="market-category">
+                <h3>Entrambe segnano</h3>
 
-            <div class="market-category-title">
-                🎯 Goal / No Goal
-            </div>
+                <div class="market-list">
 
-            <div class="markets">
+                    {% for mercato in ["Goal", "No Goal"] %}
 
-                {% for mercato in ["Goal", "No Goal"] %}
+                    {% set valore = mercati.get(mercato, 0) %}
 
-                    <div class="market">
+                    <div class="market-row
+                        {% if pronostico == mercato %}
+                            highlight
+                        {% endif %}
+                    ">
 
-                        <div class="market-head">
+                        <span class="market-name">
+                            {{ mercato }}
+                        </span>
 
-                            <div class="market-name">
-                                {{ mercato }}
-                            </div>
-
-                            <div class="market-prob">
-                                {{ mercati[mercato] }}%
-                            </div>
-
-                        </div>
-
-                        <div class="market-bar">
-
-                            <div
-                                class="market-fill"
-                                style="width: {{ mercati[mercato] }}%;"
-                            ></div>
-
-                        </div>
+                        <span class="market-prob">
+                            {{ numero(valore) }}%
+                        </span>
 
                     </div>
 
-                {% endfor %}
+                    {% endfor %}
+
+                </div>
 
             </div>
 
-        </div>
 
+            <!-- DOPPIA CHANCE -->
+            <div class="market-group">
 
-        <div class="market-category">
+                <h3>Doppia chance</h3>
 
-            <div class="market-category-title">
-                🛡️ Doppia chance
-            </div>
+                <div class="market-list">
 
-            <div class="markets">
+                    {% for mercato in ["1X", "X2", "12"] %}
 
-                {% for mercato in ["1X", "X2", "12"] %}
+                    {% set valore = mercati.get(mercato, 0) %}
 
-                    <div class="market">
+                    <div class="market-row
+                        {% if pronostico == mercato %}
+                            highlight
+                        {% endif %}
+                    ">
 
-                        <div class="market-head">
+                        <span class="market-name">
+                            {{ mercato }}
+                        </span>
 
-                            <div class="market-name">
-                                {{ mercato }}
-                            </div>
-
-                            <div class="market-prob">
-                                {{ mercati[mercato] }}%
-                            </div>
-
-                        </div>
-
-                        <div class="market-bar">
-
-                            <div
-                                class="market-fill"
-                                style="width: {{ mercati[mercato] }}%;"
-                            ></div>
-
-                        </div>
+                        <span class="market-prob">
+                            {{ numero(valore) }}%
+                        </span>
 
                     </div>
 
-                {% endfor %}
+                    {% endfor %}
+
+                </div>
 
             </div>
 
@@ -1308,37 +1186,34 @@
 
     <!-- =========================
          RISULTATI ESATTI
-    ========================= -->
+    ========================== -->
 
     <section class="section">
 
         <div class="section-title">
-
-            <h2>
-                🔢 Risultati esatti
-            </h2>
-
-            <span>
-                Scenari più probabili
-            </span>
-
+            Risultati esatti AI
         </div>
 
-        <div class="scores">
+        <div class="exact-grid">
 
-            {% for risultato in risultati_esatti %}
+            {% for risultato in risultati_esatti[:3] %}
 
-                <div class="score-card">
+            <div class="exact-card">
 
-                    <div class="score-result">
-                        {{ risultato.get("risultato", risultato.get("score", risultato.get("esito", "-"))) }}
-                    </div>
-
-                    <div class="score-prob">
-                        {{ risultato.get("probabilita", risultato.get("prob", "-")) }}%
-                    </div>
-
+                <div class="exact-score">
+                    {{ risultato.get("risultato", risultato.get("score", "-")) }}
                 </div>
+
+                <div class="exact-prob">
+                    {{ numero(
+                        risultato.get(
+                            "probabilita",
+                            risultato.get("prob", 0)
+                        )
+                    ) }}%
+                </div>
+
+            </div>
 
             {% endfor %}
 
@@ -1348,110 +1223,76 @@
 
 
     <!-- =========================
-         PROBABILI MARCATORI
-    ========================= -->
+         MARCATORI
+    ========================== -->
+
+    {% if marcatori_casa or marcatori_trasferta %}
 
     <section class="section">
 
         <div class="section-title">
-
-            <h2>
-                ⚽ Probabili marcatori AI
-            </h2>
-
-            <span>
-                Stima del motore
-            </span>
-
+            Probabili marcatori AI
         </div>
 
-        <div class="scorers">
+        <div class="scorers-grid">
 
 
-            <div class="scorer-team">
+            <!-- CASA -->
+            <div class="scorer-card">
 
-                <div class="scorer-team-title">
+                <div class="scorer-title">
                     {{ casa }}
                 </div>
 
-                {% for giocatore in marcatori_casa %}
+                {% for marcatore in marcatori_casa[:5] %}
 
-                    <div class="scorer">
+                <div class="scorer-row">
 
-                        <div>
+                    <span class="scorer-name">
+                        {{ marcatore.get("nome", marcatore.get("giocatore", "-")) }}
+                    </span>
 
-                            <div class="scorer-name">
-                                {{ giocatore.get("nome", giocatore.get("name", "-")) }}
-                            </div>
+                    <span class="scorer-prob">
+                        {{ numero(
+                            marcatore.get(
+                                "probabilita",
+                                marcatore.get("prob", 0)
+                            )
+                        ) }}%
+                    </span>
 
-                            <div class="scorer-details">
-
-                                {% if giocatore.get("gol") is not none %}
-                                    ⚽ {{ giocatore.get("gol") }}
-                                {% endif %}
-
-                                {% if giocatore.get("assist") is not none %}
-                                    &nbsp; • &nbsp; 🅰️ {{ giocatore.get("assist") }}
-                                {% endif %}
-
-                                {% if giocatore.get("rigori") is not none %}
-                                    &nbsp; • &nbsp; 🎯 {{ giocatore.get("rigori") }}
-                                {% endif %}
-
-                            </div>
-
-                        </div>
-
-                        <div class="scorer-prob">
-                            {{ giocatore.get("probabilita", "-") }}%
-                        </div>
-
-                    </div>
+                </div>
 
                 {% endfor %}
 
             </div>
 
 
-            <div class="scorer-team">
+            <!-- TRASFERTA -->
+            <div class="scorer-card">
 
-                <div class="scorer-team-title">
+                <div class="scorer-title">
                     {{ trasferta }}
                 </div>
 
-                {% for giocatore in marcatori_trasferta %}
+                {% for marcatore in marcatori_trasferta[:5] %}
 
-                    <div class="scorer">
+                <div class="scorer-row">
 
-                        <div>
+                    <span class="scorer-name">
+                        {{ marcatore.get("nome", marcatore.get("giocatore", "-")) }}
+                    </span>
 
-                            <div class="scorer-name">
-                                {{ giocatore.get("nome", giocatore.get("name", "-")) }}
-                            </div>
+                    <span class="scorer-prob">
+                        {{ numero(
+                            marcatore.get(
+                                "probabilita",
+                                marcatore.get("prob", 0)
+                            )
+                        ) }}%
+                    </span>
 
-                            <div class="scorer-details">
-
-                                {% if giocatore.get("gol") is not none %}
-                                    ⚽ {{ giocatore.get("gol") }}
-                                {% endif %}
-
-                                {% if giocatore.get("assist") is not none %}
-                                    &nbsp; • &nbsp; 🅰️ {{ giocatore.get("assist") }}
-                                {% endif %}
-
-                                {% if giocatore.get("rigori") is not none %}
-                                    &nbsp; • &nbsp; 🎯 {{ giocatore.get("rigori") }}
-                                {% endif %}
-
-                            </div>
-
-                        </div>
-
-                        <div class="scorer-prob">
-                            {{ giocatore.get("probabilita", "-") }}%
-                        </div>
-
-                    </div>
+                </div>
 
                 {% endfor %}
 
@@ -1461,12 +1302,14 @@
 
     </section>
 
+    {% endif %}
 
-    <footer>
-        CalcioAI • AI Football Engine • Analisi statistica automatizzata
-    </footer>
+</main>
 
-</div>
+
+<footer>
+    CalcioAI • AI Football Engine • Football-Data.org
+</footer>
 
 </body>
 </html>

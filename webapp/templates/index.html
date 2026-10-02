@@ -1,12 +1,17 @@
 <!DOCTYPE html>
+
 <html lang="it">
+
 <head>
+
     <meta charset="UTF-8">
+
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
     <title>CalcioAI - Dashboard</title>
 
     <style>
+
         * {
             box-sizing: border-box;
             margin: 0;
@@ -197,13 +202,25 @@
             margin-top: 7px;
         }
 
-        .date-card {
-            min-width: 190px;
-            padding: 14px 17px;
-            border-radius: 16px;
+        /* =========================
+           DATE SELECTOR
+        ========================= */
+
+        .date-selector {
+            min-width: 310px;
+            padding: 15px 16px;
+            border-radius: 17px;
             background: rgba(17,22,31,0.90);
             border: 1px solid rgba(255,255,255,0.07);
-            text-align: right;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.16);
+        }
+
+        .date-selector-top {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            margin-bottom: 9px;
         }
 
         .date-label {
@@ -214,11 +231,81 @@
             font-weight: 800;
         }
 
-        .date-value {
-            color: #f5f7fb;
-            font-size: 13px;
+        .selected-date {
+            color: #55efb5;
+            font-size: 10px;
             font-weight: 900;
-            margin-top: 5px;
+        }
+
+        .date-form {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .date-input {
+            flex: 1;
+            min-width: 0;
+            height: 40px;
+            padding: 0 11px;
+            border-radius: 10px;
+            border: 1px solid rgba(255,255,255,0.08);
+            outline: none;
+            background: rgba(255,255,255,0.045);
+            color: #f5f7fb;
+            font-family: Arial, Helvetica, sans-serif;
+            font-size: 11px;
+            font-weight: 800;
+            color-scheme: dark;
+        }
+
+        .date-input:focus {
+            border-color: rgba(22,227,154,0.45);
+            box-shadow: 0 0 0 3px rgba(22,227,154,0.07);
+        }
+
+        .date-button {
+            height: 40px;
+            padding: 0 13px;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            color: #ffffff;
+            font-size: 9px;
+            font-weight: 900;
+            letter-spacing: 0.4px;
+            background: linear-gradient(135deg, #16c98b, #176eff);
+            box-shadow: 0 8px 22px rgba(23,110,255,0.18);
+            transition:
+                transform 0.18s ease,
+                filter 0.18s ease;
+        }
+
+        .date-button:hover {
+            transform: translateY(-1px);
+            filter: brightness(1.08);
+        }
+
+        .today-button {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            margin-top: 9px;
+            padding: 5px 9px;
+            border-radius: 8px;
+            color: #7f899b;
+            background: rgba(255,255,255,0.035);
+            border: 1px solid rgba(255,255,255,0.055);
+            text-decoration: none;
+            font-size: 8px;
+            font-weight: 900;
+            letter-spacing: 0.5px;
+            transition: 0.18s ease;
+        }
+
+        .today-button:hover {
+            color: #ffffff;
+            background: rgba(255,255,255,0.06);
         }
 
         /* =========================
@@ -309,7 +396,11 @@
             border-radius: 21px;
             padding: 20px;
             background:
-                linear-gradient(145deg, rgba(19,25,36,0.96), rgba(11,15,23,0.96));
+                linear-gradient(
+                    145deg,
+                    rgba(19,25,36,0.96),
+                    rgba(11,15,23,0.96)
+                );
             border: 1px solid rgba(255,255,255,0.07);
             box-shadow: 0 16px 45px rgba(0,0,0,0.20);
             transition:
@@ -471,6 +562,10 @@
             line-height: 1.6;
         }
 
+        .empty strong {
+            color: #55efb5;
+        }
+
         /* =========================
            FOOTER
         ========================= */
@@ -501,8 +596,8 @@
                 align-items: stretch;
             }
 
-            .date-card {
-                min-width: 165px;
+            .date-selector {
+                min-width: 280px;
             }
         }
 
@@ -556,10 +651,18 @@
                 display: block;
             }
 
-            .date-card {
+            .date-selector {
                 margin-top: 15px;
-                text-align: left;
                 width: 100%;
+                min-width: 0;
+            }
+
+            .date-form {
+                flex-direction: row;
+            }
+
+            .date-button {
+                padding: 0 11px;
             }
 
             .summary {
@@ -601,7 +704,9 @@
                 width: 100%;
             }
         }
+
     </style>
+
 </head>
 
 <body>
@@ -654,17 +759,13 @@
         </a>
 
 
-        <a href="#mercati" class="nav-item nav-coming">
+        <a href="/mercati" class="nav-item">
 
             <span class="nav-icon">
                 🎯
             </span>
 
             Mercati AI
-
-            <span class="coming-badge">
-                PRESTO
-            </span>
 
         </a>
 
@@ -718,15 +819,67 @@
         </div>
 
 
-        <div class="date-card">
+        <!-- DATE SELECTOR -->
 
-            <div class="date-label">
-                Data analisi
+        <div class="date-selector">
+
+            <div class="date-selector-top">
+
+                <div class="date-label">
+                    Data analisi
+                </div>
+
+                <div class="selected-date">
+
+                    {% if data_test %}
+
+                        {{ data_test }}
+
+                    {% else %}
+
+                        Oggi
+
+                    {% endif %}
+
+                </div>
+
             </div>
 
-            <div class="date-value">
-                {{ request.view_args.get('data_test') or 'Oggi' }}
-            </div>
+
+            <form
+                class="date-form"
+                action="/"
+                method="get"
+            >
+
+                <input
+                    class="date-input"
+                    type="date"
+                    name="data"
+                    value="{{ data_test or '' }}"
+                    required
+                >
+
+                <button
+                    class="date-button"
+                    type="submit"
+                >
+                    CERCA
+                </button>
+
+            </form>
+
+
+            {% if data_test %}
+
+                <a
+                    class="today-button"
+                    href="/"
+                >
+                    ↩ TORNA A OGGI
+                </a>
+
+            {% endif %}
 
         </div>
 
@@ -816,7 +969,7 @@
                         </div>
 
                         <div class="match-time">
-                            🕐 {{ partita.get('ora', '--:--') }}
+                            🕒 {{ partita.get('ora', '--:--') }}
                         </div>
 
                     </div>
@@ -825,15 +978,21 @@
                     <div class="teams">
 
                         <div class="team home">
+
                             {{ partita.get('casa', 'Squadra casa') }}
+
                         </div>
+
 
                         <div class="vs">
                             VS
                         </div>
 
+
                         <div class="team away">
+
                             {{ partita.get('trasferta', 'Squadra ospite') }}
+
                         </div>
 
                     </div>
@@ -848,7 +1007,7 @@
 
                         <a
                             class="analyse-button"
-                            href="/analizza/{{ partita.get('id') }}{% if request.view_args.get('data_test') %}?data={{ request.view_args.get('data_test') }}{% endif %}"
+                            href="/analizza/{{ partita.get('id') }}{% if data_test %}?data={{ data_test }}{% endif %}"
                         >
                             🔍 ANALIZZA PARTITA
                         </a>
@@ -877,8 +1036,20 @@
             </h3>
 
             <p>
-                Al momento non sono state trovate partite disponibili
-                per questa data. Riprova più tardi o seleziona un'altra giornata.
+
+                {% if data_test %}
+
+                    Per il <strong>{{ data_test }}</strong> la fonte dati
+                    non ha restituito partite disponibili per l'analisi AI.
+                    Prova a selezionare un'altra data.
+
+                {% else %}
+
+                    Al momento la fonte dati non ha restituito partite
+                    disponibili per oggi. Riprova più tardi.
+
+                {% endif %}
+
             </p>
 
         </div>
@@ -887,10 +1058,13 @@
 
 
     <footer>
+
         CalcioAI • AI Football Engine • Dati calcistici Football-Data.org
+
     </footer>
 
 </div>
 
 </body>
+
 </html>

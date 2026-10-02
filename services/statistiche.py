@@ -29,6 +29,10 @@ def statistiche_vuote():
 
         "forma": "N/D",
 
+        "vittorie": 0,
+        "pareggi": 0,
+        "sconfitte": 0,
+
         "gol_fatti": 0,
 
         "gol_subiti": 0,
@@ -315,7 +319,7 @@ def ultime_partite(team_id):
 
 
     # ========================================================
-    # ANALISI ULTIME 5
+    # ANALISI ULTIME 5 PARTITE REALI
     # ========================================================
 
     for partita in ultime:
@@ -424,7 +428,7 @@ def ultime_partite(team_id):
 
 
         # ====================================================
-        # GOL
+        # GOL REALI
         # ====================================================
 
         gol_fatti += fatti
@@ -460,7 +464,7 @@ def ultime_partite(team_id):
 
 
         # ====================================================
-        # GOAL
+        # GOAL / NO GOAL
         # ====================================================
 
         if (
@@ -493,7 +497,7 @@ def ultime_partite(team_id):
 
 
     # ========================================================
-    # CALCOLO MEDIE
+    # CALCOLO MEDIE REALI
     # ========================================================
 
     media_gol_fatti = round(
@@ -558,45 +562,57 @@ def ultime_partite(team_id):
 
 
     # ========================================================
-    # STATISTICHE FINALI
+    # STATISTICHE FINALI REALI
     # ========================================================
 
     statistiche = {
 
+        # Forma testuale
         "forma":
         f"{vittorie}V "
         f"{pareggi}P "
         f"{sconfitte}S",
 
 
+        # Forma strutturata
+        "vittorie":
+        vittorie,
+
+        "pareggi":
+        pareggi,
+
+        "sconfitte":
+        sconfitte,
+
+
+        # Gol
         "gol_fatti":
         gol_fatti,
-
 
         "gol_subiti":
         gol_subiti,
 
 
+        # Medie
         "media_gol_fatti":
         media_gol_fatti,
-
 
         "media_gol_subiti":
         media_gol_subiti,
 
 
+        # Percentuali
         "over15":
         percentuale_over15,
 
-
         "over25":
         percentuale_over25,
-
 
         "golgol":
         percentuale_golgol,
 
 
+        # Numero partite
         "partite_analizzate":
         partite_valide
 
@@ -608,7 +624,7 @@ def ultime_partite(team_id):
     # ========================================================
 
     print(
-        "📊 STATISTICHE FINALI:",
+        "📊 STATISTICHE FINALI REALI:",
         statistiche
     )
 
