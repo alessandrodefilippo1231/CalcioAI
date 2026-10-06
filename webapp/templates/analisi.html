@@ -363,13 +363,13 @@
             border: 1px solid rgba(25,230,140,0.18);
         }
 
-        .form-p {
-            color: #f3c85c;
-            background: rgba(243,200,92,0.10);
-            border: 1px solid rgba(243,200,92,0.17);
+        .form-n {
+            color: #58b8ff;
+            background: rgba(88,184,255,0.10);
+            border: 1px solid rgba(88,184,255,0.17);
         }
 
-        .form-s {
+        .form-p {
             color: #ff7373;
             background: rgba(255,100,100,0.10);
             border: 1px solid rgba(255,100,100,0.16);
@@ -399,6 +399,102 @@
             font-size: 15px;
             font-weight: 750;
             color: #dce4e8;
+        }
+
+        /* =========================
+           STORICO REALE
+        ========================= */
+
+        .history-wrapper {
+            margin-top: 18px;
+            padding-top: 17px;
+            border-top: 1px solid rgba(255,255,255,0.07);
+        }
+
+        .history-title {
+            font-size: 12px;
+            color: #7f8e98;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            font-weight: 700;
+            margin-bottom: 10px;
+        }
+
+        .history-list {
+            display: grid;
+            gap: 7px;
+        }
+
+        .history-row {
+            display: grid;
+            grid-template-columns: 82px 1fr 55px;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 11px;
+            border-radius: 9px;
+            background: rgba(255,255,255,0.035);
+            border: 1px solid rgba(255,255,255,0.035);
+        }
+
+        .history-date {
+            color: #71808a;
+            font-size: 10px;
+            white-space: nowrap;
+        }
+
+        .history-match {
+            min-width: 0;
+            font-size: 11px;
+            color: #c5d0d5;
+            line-height: 1.35;
+        }
+
+        .history-match strong {
+            color: #e4eaed;
+        }
+
+        .history-score {
+            text-align: center;
+            font-size: 13px;
+            font-weight: 900;
+            color: #f1f5f7;
+        }
+
+        .history-result {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 24px;
+            height: 24px;
+            padding: 0 6px;
+            border-radius: 7px;
+            font-size: 10px;
+            font-weight: 900;
+            margin-left: 5px;
+        }
+
+        .history-v {
+            color: #56efa5;
+            background: rgba(25,230,140,0.12);
+        }
+
+        .history-n {
+            color: #58b8ff;
+            background: rgba(88,184,255,0.10);
+        }
+
+        .history-p {
+            color: #ff7373;
+            background: rgba(255,100,100,0.10);
+        }
+
+        .history-empty {
+            padding: 12px;
+            border-radius: 9px;
+            background: rgba(255,255,255,0.025);
+            color: #697780;
+            font-size: 11px;
+            text-align: center;
         }
 
         /* =========================
@@ -614,6 +710,7 @@
         ========================= */
 
         @media (max-width: 850px) {
+
             .kpi-grid {
                 grid-template-columns: repeat(2, 1fr);
             }
@@ -624,6 +721,7 @@
         }
 
         @media (max-width: 650px) {
+
             .container {
                 width: min(100% - 20px, 1180px);
             }
@@ -700,9 +798,28 @@
             .exact-card {
                 padding: 17px;
             }
+
+            .history-row {
+                grid-template-columns: 70px 1fr 48px;
+                gap: 7px;
+                padding: 9px;
+            }
+
+            .history-date {
+                font-size: 9px;
+            }
+
+            .history-match {
+                font-size: 10px;
+            }
+
+            .history-score {
+                font-size: 12px;
+            }
         }
 
         @media (max-width: 420px) {
+
             .kpi-grid {
                 grid-template-columns: 1fr;
             }
@@ -728,6 +845,24 @@
                 font-size: 10px;
                 padding: 6px 8px;
             }
+
+            .history-row {
+                grid-template-columns: 1fr auto;
+            }
+
+            .history-date {
+                grid-column: 1 / -1;
+                margin-bottom: -3px;
+            }
+
+            .history-match {
+                grid-column: 1;
+            }
+
+            .history-score {
+                grid-column: 2;
+                grid-row: 2;
+            }
         }
     </style>
 </head>
@@ -735,7 +870,9 @@
 <body>
 
 <header class="topbar">
+
     <div class="container topbar-inner">
+
         <a href="/" class="logo">
             Calcio<span>AI</span>
         </a>
@@ -743,15 +880,24 @@
         <a href="/" class="dashboard-btn">
             ← Dashboard
         </a>
+
     </div>
+
 </header>
 
 
 <main class="container">
 
     <div class="page-header">
-        <h1>Analisi AI</h1>
-        <p>Analisi completa della partita elaborata dal motore CalcioAI.</p>
+
+        <h1>
+            Analisi AI
+        </h1>
+
+        <p>
+            Analisi completa della partita elaborata dal motore CalcioAI.
+        </p>
+
     </div>
 
 
@@ -764,36 +910,60 @@
         <div class="match-meta">
 
             {% if lega %}
-                <span class="badge league">{{ lega }}</span>
+                <span class="badge league">
+                    {{ lega }}
+                </span>
             {% endif %}
 
             {% if paese %}
-                <span class="badge">{{ paese }}</span>
+                <span class="badge">
+                    {{ paese }}
+                </span>
             {% endif %}
 
             {% if ora %}
-                <span class="badge">🕐 {{ ora }}</span>
+                <span class="badge">
+                    🕐 {{ ora }}
+                </span>
             {% endif %}
 
         </div>
 
+
         <div class="teams">
 
             <div class="team">
-                <div class="team-label">Casa</div>
-                <div class="team-name">{{ casa }}</div>
+
+                <div class="team-label">
+                    Casa
+                </div>
+
+                <div class="team-name">
+                    {{ casa }}
+                </div>
+
             </div>
+
 
             <div class="vs">
                 VS
             </div>
 
+
             <div class="team">
-                <div class="team-label">Trasferta</div>
-                <div class="team-name">{{ trasferta }}</div>
+
+                <div class="team-label">
+                    Trasferta
+                </div>
+
+                <div class="team-name">
+                    {{ trasferta }}
+                </div>
+
             </div>
 
         </div>
+
 
         <div class="match-date">
             {{ data_test }}
@@ -833,28 +1003,47 @@
             AI Overview
         </div>
 
+
         <div class="kpi-grid">
 
             <div class="kpi green">
-                <div class="kpi-label">AI Score</div>
+
+                <div class="kpi-label">
+                    AI Score
+                </div>
+
                 <div class="kpi-value">
                     {{ numero(ai_score) }}%
                 </div>
+
             </div>
 
+
             <div class="kpi blue">
-                <div class="kpi-label">Fiducia</div>
+
+                <div class="kpi-label">
+                    Fiducia
+                </div>
+
                 <div class="kpi-value">
                     {{ numero(fiducia) }}%
                 </div>
+
             </div>
 
+
             <div class="kpi yellow">
-                <div class="kpi-label">Value Index</div>
+
+                <div class="kpi-label">
+                    Value Index
+                </div>
+
                 <div class="kpi-value">
                     {{ numero(value_index) }}
                 </div>
+
             </div>
+
 
             {% set rischio_lower = (rischio|string)|lower %}
 
@@ -867,10 +1056,15 @@
                     risk-high
                 {% endif %}
             ">
-                <div class="kpi-label">Rischio</div>
+
+                <div class="kpi-label">
+                    Rischio
+                </div>
+
                 <div class="kpi-value">
                     {{ rischio }}
                 </div>
+
             </div>
 
         </div>
@@ -888,92 +1082,230 @@
             Forma recente
         </div>
 
+
         <div class="form-grid">
+
 
             {% for nome_squadra, stats in [
                 (casa, statistiche_casa),
                 (trasferta, statistiche_trasferta)
             ] %}
 
+
             <div class="team-stats">
 
                 <div class="team-stats-header">
+
                     <div class="team-stats-name">
                         {{ nome_squadra }}
                     </div>
+
 
                     <div class="form-chips">
 
                         {% set forma = stats.get("forma", "")|string %}
 
-                        {% for token in forma.split() %}
+                        {% for token in forma %}
 
-                            {% set risultato = token|replace("0","")|replace("1","")|replace("2","")|replace("3","")|replace("4","")|replace("5","")|replace("6","")|replace("7","")|replace("8","")|replace("9","") %}
+                            {% if token == "V" %}
 
-                            {% if risultato == "V" %}
-                                <span class="form-chip form-v">V</span>
+                                <span class="form-chip form-v">
+                                    V
+                                </span>
 
-                            {% elif risultato == "P" %}
-                                <span class="form-chip form-p">P</span>
+                            {% elif token == "N" %}
 
-                            {% elif risultato == "S" %}
-                                <span class="form-chip form-s">S</span>
+                                <span class="form-chip form-n">
+                                    N
+                                </span>
+
+                            {% elif token == "P" %}
+
+                                <span class="form-chip form-p">
+                                    P
+                                </span>
 
                             {% endif %}
 
                         {% endfor %}
 
                     </div>
+
                 </div>
 
 
                 <div class="stats-list">
 
                     <div class="stat">
-                        <span class="stat-label">Vittorie</span>
+
+                        <span class="stat-label">
+                            Vittorie
+                        </span>
+
                         <span class="stat-value">
                             {{ stats.get("vittorie", 0) }}
                         </span>
+
                     </div>
 
+
                     <div class="stat">
-                        <span class="stat-label">Pareggi</span>
+
+                        <span class="stat-label">
+                            Pareggi
+                        </span>
+
                         <span class="stat-value">
                             {{ stats.get("pareggi", 0) }}
                         </span>
+
                     </div>
 
+
                     <div class="stat">
-                        <span class="stat-label">Sconfitte</span>
+
+                        <span class="stat-label">
+                            Sconfitte
+                        </span>
+
                         <span class="stat-value">
                             {{ stats.get("sconfitte", 0) }}
                         </span>
+
                     </div>
 
+
                     <div class="stat">
-                        <span class="stat-label">Gol fatti</span>
+
+                        <span class="stat-label">
+                            Gol fatti
+                        </span>
+
                         <span class="stat-value">
                             {{ stats.get("gol_fatti", 0) }}
                         </span>
+
                     </div>
 
+
                     <div class="stat">
-                        <span class="stat-label">Gol subiti</span>
+
+                        <span class="stat-label">
+                            Gol subiti
+                        </span>
+
                         <span class="stat-value">
                             {{ stats.get("gol_subiti", 0) }}
                         </span>
+
                     </div>
 
+
                     <div class="stat">
-                        <span class="stat-label">Over 1.5</span>
+
+                        <span class="stat-label">
+                            Over 1.5
+                        </span>
+
                         <span class="stat-value">
                             {{ numero(stats.get("over15", 0)) }}%
                         </span>
+
                     </div>
 
                 </div>
 
+
+                <!-- =========================
+                     STORICO REALE
+                ========================== -->
+
+                <div class="history-wrapper">
+
+                    <div class="history-title">
+                        Ultime 5 partite reali
+                    </div>
+
+
+                    {% set storico = stats.get("storico", []) %}
+
+
+                    {% if storico %}
+
+                        <div class="history-list">
+
+                            {% for partita in storico[:5] %}
+
+                            <div class="history-row">
+
+                                <div class="history-date">
+                                    {{ partita.get("data", "N/D") }}
+                                </div>
+
+
+                                <div class="history-match">
+
+                                    <strong>
+                                        {{ partita.get("casa", "N/D") }}
+                                    </strong>
+
+                                    <span>
+                                        -
+                                    </span>
+
+                                    <strong>
+                                        {{ partita.get("trasferta", "N/D") }}
+                                    </strong>
+
+
+                                    {% set risultato = partita.get("risultato", "") %}
+
+
+                                    {% if risultato == "V" %}
+
+                                        <span class="history-result history-v">
+                                            V
+                                        </span>
+
+                                    {% elif risultato == "N" %}
+
+                                        <span class="history-result history-n">
+                                            N
+                                        </span>
+
+                                    {% elif risultato == "P" %}
+
+                                        <span class="history-result history-p">
+                                            P
+                                        </span>
+
+                                    {% endif %}
+
+                                </div>
+
+
+                                <div class="history-score">
+                                    {{ partita.get("score", "-") }}
+                                </div>
+
+                            </div>
+
+                            {% endfor %}
+
+                        </div>
+
+                    {% else %}
+
+                        <div class="history-empty">
+                            Storico reale non disponibile.
+                        </div>
+
+                    {% endif %}
+
+                </div>
+
             </div>
+
 
             {% endfor %}
 
@@ -992,6 +1324,7 @@
             Indicatori AI
         </div>
 
+
         <div class="indicator-card">
 
             {% set indicatori_data = [
@@ -1001,11 +1334,13 @@
                 ("Under 3.5", indicatori.get("under35", 0))
             ] %}
 
+
             {% for nome, valore in indicatori_data %}
 
             <div class="indicator">
 
                 <div class="indicator-top">
+
                     <span class="indicator-name">
                         {{ nome }}
                     </span>
@@ -1013,13 +1348,17 @@
                     <span class="indicator-value">
                         {{ numero(valore) }}%
                     </span>
+
                 </div>
 
+
                 <div class="progress">
+
                     <div
                         class="progress-bar"
                         style="width: {{ valore|float }}%;"
                     ></div>
+
                 </div>
 
             </div>
@@ -1041,13 +1380,17 @@
             Mercati AI
         </div>
 
+
         <div class="markets-grid">
 
 
             <!-- ESITO -->
+
             <div class="market-group">
 
-                <h3>Esito partita</h3>
+                <h3>
+                    Esito partita
+                </h3>
 
                 <div class="market-list">
 
@@ -1079,13 +1422,20 @@
 
 
             <!-- TOTALI GOL -->
+
             <div class="market-group">
 
-                <h3>Totale gol</h3>
+                <h3>
+                    Totale gol
+                </h3>
 
                 <div class="market-list">
 
-                    {% for mercato in ["Over 1.5", "Over 2.5", "Under 3.5"] %}
+                    {% for mercato in [
+                        "Over 1.5",
+                        "Over 2.5",
+                        "Under 3.5"
+                    ] %}
 
                     {% set valore = mercati.get(mercato, 0) %}
 
@@ -1113,13 +1463,19 @@
 
 
             <!-- GOAL -->
+
             <div class="market-group">
 
-                <h3>Entrambe segnano</h3>
+                <h3>
+                    Entrambe segnano
+                </h3>
 
                 <div class="market-list">
 
-                    {% for mercato in ["Goal", "No Goal"] %}
+                    {% for mercato in [
+                        "Goal",
+                        "No Goal"
+                    ] %}
 
                     {% set valore = mercati.get(mercato, 0) %}
 
@@ -1147,13 +1503,20 @@
 
 
             <!-- DOPPIA CHANCE -->
+
             <div class="market-group">
 
-                <h3>Doppia chance</h3>
+                <h3>
+                    Doppia chance
+                </h3>
 
                 <div class="market-list">
 
-                    {% for mercato in ["1X", "X2", "12"] %}
+                    {% for mercato in [
+                        "1X",
+                        "X2",
+                        "12"
+                    ] %}
 
                     {% set valore = mercati.get(mercato, 0) %}
 
@@ -1194,6 +1557,7 @@
             Risultati esatti AI
         </div>
 
+
         <div class="exact-grid">
 
             {% for risultato in risultati_esatti[:3] %}
@@ -1201,16 +1565,24 @@
             <div class="exact-card">
 
                 <div class="exact-score">
-                    {{ risultato.get("risultato", risultato.get("score", "-")) }}
+
+                    {{ risultato.get(
+                        "risultato",
+                        risultato.get("score", "-")
+                    ) }}
+
                 </div>
 
+
                 <div class="exact-prob">
+
                     {{ numero(
                         risultato.get(
                             "probabilita",
                             risultato.get("prob", 0)
                         )
                     ) }}%
+
                 </div>
 
             </div>
@@ -1234,31 +1606,48 @@
             Probabili marcatori AI
         </div>
 
+
         <div class="scorers-grid">
 
 
             <!-- CASA -->
+
             <div class="scorer-card">
 
                 <div class="scorer-title">
                     {{ casa }}
                 </div>
 
+
                 {% for marcatore in marcatori_casa[:5] %}
 
                 <div class="scorer-row">
 
                     <span class="scorer-name">
-                        {{ marcatore.get("nome", marcatore.get("giocatore", "-")) }}
+
+                        {{ marcatore.get(
+                            "nome",
+                            marcatore.get(
+                                "giocatore",
+                                "-"
+                            )
+                        ) }}
+
                     </span>
 
+
                     <span class="scorer-prob">
+
                         {{ numero(
                             marcatore.get(
                                 "probabilita",
-                                marcatore.get("prob", 0)
+                                marcatore.get(
+                                    "prob",
+                                    0
+                                )
                             )
                         ) }}%
+
                     </span>
 
                 </div>
@@ -1269,27 +1658,43 @@
 
 
             <!-- TRASFERTA -->
+
             <div class="scorer-card">
 
                 <div class="scorer-title">
                     {{ trasferta }}
                 </div>
 
+
                 {% for marcatore in marcatori_trasferta[:5] %}
 
                 <div class="scorer-row">
 
                     <span class="scorer-name">
-                        {{ marcatore.get("nome", marcatore.get("giocatore", "-")) }}
+
+                        {{ marcatore.get(
+                            "nome",
+                            marcatore.get(
+                                "giocatore",
+                                "-"
+                            )
+                        ) }}
+
                     </span>
 
+
                     <span class="scorer-prob">
+
                         {{ numero(
                             marcatore.get(
                                 "probabilita",
-                                marcatore.get("prob", 0)
+                                marcatore.get(
+                                    "prob",
+                                    0
+                                )
                             )
                         ) }}%
+
                     </span>
 
                 </div>
@@ -1310,6 +1715,7 @@
 <footer>
     CalcioAI • AI Football Engine • Football-Data.org
 </footer>
+
 
 </body>
 </html>

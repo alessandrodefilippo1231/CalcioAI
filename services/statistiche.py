@@ -1,12 +1,17 @@
-from config import FOOTBALL_API_KEY
-
-from services.cache_statistiche import (
-    prendi_statistiche,
-    salva_statistiche
-)
+import json
+import os
+from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
 
 import requests
-from datetime import datetime, timedelta, timezone
+from dotenv import load_dotenv
+
+
+# ============================================================
+# CARICAMENTO VARIABILI .ENV
+# ============================================================
+
+load_dotenv()
 
 
 # ============================================================
@@ -15,631 +20,1016 @@ from datetime import datetime, timedelta, timezone
 
 BASE_URL = "https://api.football-data.org/v4"
 
-# Numero massimo di partite utilizzate per la forma
-NUMERO_ULTIME_PARTITE = 5
+CACHE_FILE = "cache/statistiche_cache.json"
+
+NUMERO_PARTITE_STORICO = 5
+GIORNI_STORICO_API = 120
+CACHE_FALLBACK_ORE = 168
+
+ROME_TZ = ZoneInfo("Europe/Rome")
+
+
+# ============================================================
+# COMPETIZIONI SUPPORTATE
+# ============================================================
+
+COMPETIZIONI_SUPPORTATE = {
+    "SA": "Serie A",
+    "PL": "Premier League",
+    "BL1": "Bundesliga",
+    "PD": "La Liga",
+    "FL1": "Ligue 1",
+    "CL": "Champions League",
+}
 
 
 # ============================================================
 # STATISTICHE VUOTE
 # ============================================================
 
-def statistiche_vuote():
+def statistiche_vuote(competition_code=None):
+
+    nome_competizione = COMPETIZIONI_SUPPORTATE.get(
+        competition_code,
+        "N/D"
+    )
 
     return {
+        "competizione": nome_competizione,
+        "competizione_code": competition_code,
 
-        "forma": "N/D",
+        "partite": 0,
 
         "vittorie": 0,
         "pareggi": 0,
         "sconfitte": 0,
 
         "gol_fatti": 0,
-
         "gol_subiti": 0,
 
-        "media_gol_fatti": 0,
-
-        "media_gol_subiti": 0,
+        "media_gol_fatti": 0.0,
+        "media_gol_subiti": 0.0,
 
         "over15": 0,
-
         "over25": 0,
-
+        "under35": 0,
         "golgol": 0,
 
-        "partite_analizzate": 0
-
+        "storico": [],
     }
 
 
 # ============================================================
-# ULTIME PARTITE
+# CACHE
 # ============================================================
 
-def ultime_partite(team_id):
+def _assicura_cartella_cache():
+
+    cartella = os.path.dirname(CACHE_FILE)
+
+    if cartella:
+        os.makedirs(
+            cartella,
+            exist_ok=True
+        )
+
+
+def _leggi_cache():
+
+    if not os.path.exists(CACHE_FILE):
+        return {}
+
+    try:
+
+        with open(
+            CACHE_FILE,
+            "r",
+            encoding="utf-8"
+        ) as f:
+
+            dati = json.load(f)
+
+        if isinstance(dati, dict):
+            return dati
+
+    except Exception as e:
+
+        print(
+            f"⚠️ Errore lettura cache statistiche: {e}"
+        )
+
+    return {}
+
+
+def _salva_cache(dati):
+
+    _assicura_cartella_cache()
+
+    try:
+
+        with open(
+            CACHE_FILE,
+            "w",
+            encoding="utf-8"
+        ) as f:
+
+            json.dump(
+                dati,
+                f,
+                ensure_ascii=False,
+                indent=2
+            )
+
+    except Exception as e:
+
+        print(
+            f"⚠️ Errore salvataggio cache statistiche: {e}"
+        )
+
+
+def _cache_key(
+    team_id,
+    competition_code
+):
+
+    return f"{team_id}_{competition_code}"
+
+
+def _prendi_cache_vecchia(
+    team_id,
+    competition_code
+):
+
+    """
+    Compatibilità con eventuale vecchia cache
+    che utilizzava solo team_id come chiave.
+    """
+
+    cache = _leggi_cache()
+
+    dati = cache.get(
+        str(team_id)
+    )
+
+    if not isinstance(dati, dict):
+
+        dati = cache.get(
+            team_id
+        )
+
+    if not isinstance(dati, dict):
+        return None
+
+    storico = dati.get(
+        "storico"
+    )
+
+    if not isinstance(storico, list):
+        return None
+
+    storico_filtrato = []
+
+    for partita in storico:
+
+        if not isinstance(
+            partita,
+            dict
+        ):
+            continue
+
+        codice = partita.get(
+            "competizione_code"
+        )
+
+        if codice == competition_code:
+
+            storico_filtrato.append(
+                partita
+            )
+
+    if not storico_filtrato:
+        return None
+
+    nuovo = dict(
+        dati
+    )
+
+    nuovo["storico"] = storico_filtrato[
+        :NUMERO_PARTITE_STORICO
+    ]
+
+    nuovo["competizione_code"] = (
+        competition_code
+    )
+
+    nuovo["competizione"] = (
+        COMPETIZIONI_SUPPORTATE.get(
+            competition_code,
+            "N/D"
+        )
+    )
+
+    return nuovo
+
+
+def _cache_valida(dati):
+
+    if not isinstance(
+        dati,
+        dict
+    ):
+        return False
+
+    timestamp = dati.get(
+        "timestamp"
+    )
+
+    if not timestamp:
+        return False
+
+    try:
+
+        data_cache = datetime.fromisoformat(
+            timestamp
+        )
+
+        if data_cache.tzinfo is None:
+
+            data_cache = data_cache.replace(
+                tzinfo=ROME_TZ
+            )
+
+        limite = (
+            datetime.now(
+                ROME_TZ
+            )
+            - timedelta(
+                hours=CACHE_FALLBACK_ORE
+            )
+        )
+
+        return data_cache >= limite
+
+    except Exception:
+
+        return False
+
+
+# ============================================================
+# DATA
+# ============================================================
+
+def _converti_data_italiana(
+    data_utc
+):
+
+    if not data_utc:
+        return "N/D"
+
+    try:
+
+        data = datetime.fromisoformat(
+            data_utc.replace(
+                "Z",
+                "+00:00"
+            )
+        )
+
+        data_italiana = data.astimezone(
+            ROME_TZ
+        )
+
+        return data_italiana.strftime(
+            "%d/%m/%Y"
+        )
+
+    except Exception:
+
+        return "N/D"
+
+
+# ============================================================
+# COSTRUZIONE STORICO
+# ============================================================
+
+def _crea_storico(
+    team_id,
+    partite,
+    competition_code
+):
+
+    storico = []
+
+    for partita in partite:
+
+        try:
+
+            competition = partita.get(
+                "competition",
+                {}
+            )
+
+            codice_partita = competition.get(
+                "code"
+            )
+
+            # Sicurezza: solo competizione richiesta
+            if codice_partita != competition_code:
+                continue
+
+            home_team = partita.get(
+                "homeTeam",
+                {}
+            )
+
+            away_team = partita.get(
+                "awayTeam",
+                {}
+            )
+
+            score = partita.get(
+                "score",
+                {}
+            )
+
+            full_time = score.get(
+                "fullTime",
+                {}
+            )
+
+            home_id = home_team.get(
+                "id"
+            )
+
+            away_id = away_team.get(
+                "id"
+            )
+
+            gol_casa = full_time.get(
+                "home"
+            )
+
+            gol_trasferta = full_time.get(
+                "away"
+            )
+
+            if (
+                home_id is None
+                or away_id is None
+                or gol_casa is None
+                or gol_trasferta is None
+            ):
+                continue
+
+            if int(home_id) == int(team_id):
+
+                gol_fatti_team = int(
+                    gol_casa
+                )
+
+                gol_subiti_team = int(
+                    gol_trasferta
+                )
+
+            elif int(away_id) == int(team_id):
+
+                gol_fatti_team = int(
+                    gol_trasferta
+                )
+
+                gol_subiti_team = int(
+                    gol_casa
+                )
+
+            else:
+
+                continue
+
+            if (
+                gol_fatti_team
+                > gol_subiti_team
+            ):
+
+                esito = "V"
+
+            elif (
+                gol_fatti_team
+                == gol_subiti_team
+            ):
+
+                esito = "N"
+
+            else:
+
+                esito = "P"
+
+            storico.append({
+
+                "data": _converti_data_italiana(
+                    partita.get(
+                        "utcDate"
+                    )
+                ),
+
+                "casa": home_team.get(
+                    "name",
+                    "N/D"
+                ),
+
+                "trasferta": away_team.get(
+                    "name",
+                    "N/D"
+                ),
+
+                "gol_casa": int(
+                    gol_casa
+                ),
+
+                "gol_trasferta": int(
+                    gol_trasferta
+                ),
+
+                "gol_fatti_team": (
+                    gol_fatti_team
+                ),
+
+                "gol_subiti_team": (
+                    gol_subiti_team
+                ),
+
+                "esito": esito,
+
+                "competizione": competition.get(
+                    "name",
+                    COMPETIZIONI_SUPPORTATE.get(
+                        competition_code,
+                        "N/D"
+                    )
+                ),
+
+                "competizione_code": (
+                    competition_code
+                ),
+            })
+
+        except Exception as e:
+
+            print(
+                f"⚠️ Errore creazione storico: {e}"
+            )
+
+    return storico[
+        :NUMERO_PARTITE_STORICO
+    ]
+
+
+# ============================================================
+# CALCOLO STATISTICHE
+# ============================================================
+
+def _calcola_da_storico(
+    storico,
+    competition_code
+):
+
+    statistiche = statistiche_vuote(
+        competition_code
+    )
+
+    if not storico:
+        return statistiche
+
+    statistiche["storico"] = storico
+
+    statistiche["partite"] = len(
+        storico
+    )
+
+    for partita in storico:
+
+        gf = int(
+            partita.get(
+                "gol_fatti_team",
+                0
+            )
+            or 0
+        )
+
+        gs = int(
+            partita.get(
+                "gol_subiti_team",
+                0
+            )
+            or 0
+        )
+
+        statistiche[
+            "gol_fatti"
+        ] += gf
+
+        statistiche[
+            "gol_subiti"
+        ] += gs
+
+        esito = partita.get(
+            "esito"
+        )
+
+        if esito == "V":
+
+            statistiche[
+                "vittorie"
+            ] += 1
+
+        elif esito == "N":
+
+            statistiche[
+                "pareggi"
+            ] += 1
+
+        elif esito == "P":
+
+            statistiche[
+                "sconfitte"
+            ] += 1
+
+        gol_casa = int(
+            partita.get(
+                "gol_casa",
+                0
+            )
+            or 0
+        )
+
+        gol_trasferta = int(
+            partita.get(
+                "gol_trasferta",
+                0
+            )
+            or 0
+        )
+
+        totale = (
+            gol_casa
+            + gol_trasferta
+        )
+
+        if totale >= 2:
+
+            statistiche[
+                "over15"
+            ] += 1
+
+        if totale >= 3:
+
+            statistiche[
+                "over25"
+            ] += 1
+
+        if totale <= 3:
+
+            statistiche[
+                "under35"
+            ] += 1
+
+        if (
+            gol_casa > 0
+            and gol_trasferta > 0
+        ):
+
+            statistiche[
+                "golgol"
+            ] += 1
+
+    numero_partite = statistiche[
+        "partite"
+    ]
+
+    if numero_partite > 0:
+
+        statistiche[
+            "media_gol_fatti"
+        ] = round(
+            statistiche[
+                "gol_fatti"
+            ]
+            / numero_partite,
+            2
+        )
+
+        statistiche[
+            "media_gol_subiti"
+        ] = round(
+            statistiche[
+                "gol_subiti"
+            ]
+            / numero_partite,
+            2
+        )
+
+        statistiche[
+            "over15"
+        ] = round(
+            statistiche[
+                "over15"
+            ]
+            / numero_partite
+            * 100
+        )
+
+        statistiche[
+            "over25"
+        ] = round(
+            statistiche[
+                "over25"
+            ]
+            / numero_partite
+            * 100
+        )
+
+        statistiche[
+            "under35"
+        ] = round(
+            statistiche[
+                "under35"
+            ]
+            / numero_partite
+            * 100
+        )
+
+        statistiche[
+            "golgol"
+        ] = round(
+            statistiche[
+                "golgol"
+            ]
+            / numero_partite
+            * 100
+        )
+
+    return statistiche
+
+
+# ============================================================
+# API FOOTBALL-DATA
+# ============================================================
+
+def ultime_partite(
+    team_id,
+    competition_code=None
+):
+
+    if not team_id:
+
+        return statistiche_vuote(
+            competition_code
+        )
+
+    if not competition_code:
+
+        print(
+            f"⚠️ Nessuna competizione specificata "
+            f"per team {team_id}"
+        )
+
+        return statistiche_vuote()
+
+    competition_code = str(
+        competition_code
+    ).upper().strip()
+
+    if (
+        competition_code
+        not in COMPETIZIONI_SUPPORTATE
+    ):
+
+        print(
+            f"⚠️ Competizione non supportata: "
+            f"{competition_code}"
+        )
+
+        return statistiche_vuote(
+            competition_code
+        )
+
+    # ========================================================
+    # API KEY
+    # ========================================================
+
+    api_key = os.getenv(
+        "FOOTBALL_API_KEY"
+    )
+
+    if not api_key:
+
+        print(
+            "❌ FOOTBALL_API_KEY non configurata"
+        )
+
+        return statistiche_vuote(
+            competition_code
+        )
 
     # ========================================================
     # CACHE
     # ========================================================
 
-    dati_cache = prendi_statistiche(team_id)
+    cache = _leggi_cache()
 
-    if dati_cache is not None:
+    key = _cache_key(
+        team_id,
+        competition_code
+    )
 
-        print("✅ USO CACHE STATISTICHE")
+    cache_dati = cache.get(
+        key
+    )
 
-        return dati_cache
+    if (
+        isinstance(
+            cache_dati,
+            dict
+        )
+        and _cache_valida(
+            cache_dati
+        )
+        and isinstance(
+            cache_dati.get(
+                "storico"
+            ),
+            list
+        )
+        and len(
+            cache_dati[
+                "storico"
+            ]
+        ) > 0
+    ):
 
+        print(
+            f"📦 Cache statistiche "
+            f"{team_id} {competition_code}"
+        )
+
+        return cache_dati
 
     # ========================================================
-    # HEADERS API
+    # CACHE VECCHIA
     # ========================================================
 
-    headers = {
-        "X-Auth-Token": FOOTBALL_API_KEY
+    cache_vecchia = _prendi_cache_vecchia(
+        team_id,
+        competition_code
+    )
+
+    # ========================================================
+    # DATE API
+    # ========================================================
+
+    oggi = datetime.now(
+        ROME_TZ
+    ).date()
+
+    data_da = (
+        oggi
+        - timedelta(
+            days=GIORNI_STORICO_API
+        )
+    )
+
+    params = {
+
+        "status": "FINISHED",
+
+        "dateFrom": data_da.isoformat(),
+
+        "dateTo": oggi.isoformat(),
+
+        "competitions": competition_code,
     }
 
+    headers = {
 
-    # ========================================================
-    # DATA DI RICERCA
-    # ========================================================
-
-    oggi = datetime.now(timezone.utc)
-
-    data_fine = oggi.strftime("%Y-%m-%d")
-
-    # Cerchiamo abbastanza indietro per trovare
-    # le ultime partite concluse.
-    data_inizio = (
-        oggi - timedelta(days=120)
-    ).strftime("%Y-%m-%d")
-
-
-    # ========================================================
-    # URL FOOTBALL-DATA.ORG
-    # ========================================================
+        "X-Auth-Token": api_key,
+    }
 
     url = (
         f"{BASE_URL}/teams/"
         f"{team_id}/matches"
     )
 
-
-    params = {
-
-        "dateFrom": data_inizio,
-
-        "dateTo": data_fine,
-
-        "status": "FINISHED",
-
-        "limit": 100
-
-    }
-
+    # ========================================================
+    # CHIAMATA API
+    # ========================================================
 
     try:
 
         print(
-            "🌐 RICERCA ULTIME PARTITE"
+            f"🌐 API statistiche: "
+            f"team={team_id} "
+            f"competition={competition_code}"
         )
-
-        print(
-            "TEAM ID:",
-            team_id
-        )
-
-        print(
-            "DAL:",
-            data_inizio
-        )
-
-        print(
-            "AL:",
-            data_fine
-        )
-
 
         response = requests.get(
-
             url,
-
             headers=headers,
-
             params=params,
-
-            timeout=15
-
+            timeout=20
         )
-
 
         print(
-            "📡 STATUS API:",
-            response.status_code
+            f"📡 Risposta API statistiche: "
+            f"{response.status_code}"
         )
 
+        # ====================================================
+        # ERRORE API
+        # ====================================================
 
-        response.raise_for_status()
+        if response.status_code != 200:
 
+            print(
+                f"⚠️ API statistiche "
+                f"{response.status_code}"
+            )
+
+            if cache_vecchia:
+
+                print(
+                    f"📦 Uso cache precedente "
+                    f"{team_id} {competition_code}"
+                )
+
+                return cache_vecchia
+
+            if cache_dati:
+
+                print(
+                    f"📦 Uso cache disponibile "
+                    f"{team_id} {competition_code}"
+                )
+
+                return cache_dati
+
+            return statistiche_vuote(
+                competition_code
+            )
+
+        # ====================================================
+        # JSON
+        # ====================================================
 
         dati = response.json()
-
 
         partite = dati.get(
             "matches",
             []
         )
 
-
         print(
-            "📊 RISULTATI API:",
-            len(partite)
+            f"📊 Partite ricevute API: "
+            f"{len(partite)}"
         )
 
+        # ====================================================
+        # FILTRO COMPETIZIONE
+        # ====================================================
+
+        partite_filtrate = []
+
+        for partita in partite:
+
+            codice = partita.get(
+                "competition",
+                {}
+            ).get(
+                "code"
+            )
+
+            if codice == competition_code:
+
+                partite_filtrate.append(
+                    partita
+                )
+
+        # ====================================================
+        # ORDINA
+        # ====================================================
+
+        partite_filtrate.sort(
+            key=lambda x: x.get(
+                "utcDate",
+                ""
+            ),
+            reverse=True
+        )
+
+        partite_filtrate = (
+            partite_filtrate[
+                :NUMERO_PARTITE_STORICO
+            ]
+        )
+
+        print(
+            f"📊 Partite {competition_code} "
+            f"dopo filtro: "
+            f"{len(partite_filtrate)}"
+        )
+
+        # ====================================================
+        # CREA STORICO
+        # ====================================================
+
+        storico = _crea_storico(
+            team_id,
+            partite_filtrate,
+            competition_code
+        )
+
+        # ====================================================
+        # CALCOLO
+        # ====================================================
+
+        statistiche = _calcola_da_storico(
+            storico,
+            competition_code
+        )
+
+        # ====================================================
+        # TIMESTAMP
+        # ====================================================
+
+        statistiche[
+            "timestamp"
+        ] = datetime.now(
+            ROME_TZ
+        ).isoformat()
+
+        # ====================================================
+        # SALVATAGGIO CACHE
+        # ====================================================
+
+        cache = _leggi_cache()
+
+        cache[key] = statistiche
+
+        _salva_cache(
+            cache
+        )
+
+        print(
+            f"✅ Statistiche "
+            f"{team_id} "
+            f"{competition_code}: "
+            f"{statistiche['partite']} partite"
+        )
+
+        return statistiche
+
+    # ========================================================
+    # ERRORI DI RETE
+    # ========================================================
+
+    except requests.RequestException as e:
+
+        print(
+            f"❌ Errore connessione API "
+            f"statistiche: {e}"
+        )
+
+        if cache_dati:
+
+            return cache_dati
+
+        if cache_vecchia:
+
+            return cache_vecchia
+
+        return statistiche_vuote(
+            competition_code
+        )
+
+    # ========================================================
+    # ERRORE GENERICO
+    # ========================================================
 
     except Exception as e:
 
         print(
-            "❌ ERRORE RICERCA STATISTICHE:",
-            e
+            f"❌ Errore statistiche "
+            f"{team_id} "
+            f"{competition_code}: "
+            f"{e}"
         )
 
-        return statistiche_vuote()
+        if cache_dati:
 
+            return cache_dati
 
-    # ========================================================
-    # CONTROLLO DATI
-    # ========================================================
+        if cache_vecchia:
 
-    if not partite:
+            return cache_vecchia
 
-        print(
-            "⚠️ NESSUNA PARTITA DISPONIBILE"
+        return statistiche_vuote(
+            competition_code
         )
-
-        return statistiche_vuote()
-
-
-    # ========================================================
-    # ORDINA PARTITE
-    # ========================================================
-
-    partite = sorted(
-
-        partite,
-
-        key=lambda x: x.get(
-            "utcDate",
-            ""
-        ),
-
-        reverse=True
-
-    )
-
-
-    # ========================================================
-    # PRENDI SOLO PARTITE CON RISULTATO
-    # ========================================================
-
-    partite_valide_lista = []
-
-
-    for partita in partite:
-
-        status = partita.get(
-            "status"
-        )
-
-
-        if status != "FINISHED":
-
-            continue
-
-
-        score = partita.get(
-            "score",
-            {}
-        )
-
-
-        full_time = score.get(
-            "fullTime",
-            {}
-        )
-
-
-        gol_home = full_time.get(
-            "home"
-        )
-
-        gol_away = full_time.get(
-            "away"
-        )
-
-
-        if gol_home is None or gol_away is None:
-
-            continue
-
-
-        partite_valide_lista.append(
-            partita
-        )
-
-
-    # ========================================================
-    # ULTIME 5
-    # ========================================================
-
-    ultime = partite_valide_lista[
-        :NUMERO_ULTIME_PARTITE
-    ]
-
-
-    if not ultime:
-
-        print(
-            "⚠️ NESSUNA PARTITA CON RISULTATO VALIDO"
-        )
-
-        return statistiche_vuote()
-
-
-    print(
-        "✅ ULTIME PARTITE ANALIZZATE:",
-        len(ultime)
-    )
-
-
-    # ========================================================
-    # CONTATORI
-    # ========================================================
-
-    vittorie = 0
-
-    pareggi = 0
-
-    sconfitte = 0
-
-
-    gol_fatti = 0
-
-    gol_subiti = 0
-
-
-    over15 = 0
-
-    over25 = 0
-
-    golgol = 0
-
-
-    partite_valide = 0
-
-
-    # ========================================================
-    # ANALISI ULTIME 5 PARTITE REALI
-    # ========================================================
-
-    for partita in ultime:
-
-        home_team = partita.get(
-            "homeTeam",
-            {}
-        )
-
-        away_team = partita.get(
-            "awayTeam",
-            {}
-        )
-
-
-        home_id = home_team.get(
-            "id"
-        )
-
-        away_id = away_team.get(
-            "id"
-        )
-
-
-        score = partita.get(
-            "score",
-            {}
-        )
-
-
-        full_time = score.get(
-            "fullTime",
-            {}
-        )
-
-
-        gol_home = full_time.get(
-            "home"
-        )
-
-        gol_away = full_time.get(
-            "away"
-        )
-
-
-        if gol_home is None or gol_away is None:
-
-            continue
-
-
-        # ====================================================
-        # SQUADRA CASA
-        # ====================================================
-
-        if home_id == team_id:
-
-            fatti = gol_home
-
-            subiti = gol_away
-
-
-            if gol_home > gol_away:
-
-                vittorie += 1
-
-
-            elif gol_home == gol_away:
-
-                pareggi += 1
-
-
-            else:
-
-                sconfitte += 1
-
-
-        # ====================================================
-        # SQUADRA TRASFERTA
-        # ====================================================
-
-        elif away_id == team_id:
-
-            fatti = gol_away
-
-            subiti = gol_home
-
-
-            if gol_away > gol_home:
-
-                vittorie += 1
-
-
-            elif gol_home == gol_away:
-
-                pareggi += 1
-
-
-            else:
-
-                sconfitte += 1
-
-
-        else:
-
-            continue
-
-
-        # ====================================================
-        # GOL REALI
-        # ====================================================
-
-        gol_fatti += fatti
-
-        gol_subiti += subiti
-
-
-        totale_gol = (
-
-            fatti +
-
-            subiti
-
-        )
-
-
-        # ====================================================
-        # OVER 1.5
-        # ====================================================
-
-        if totale_gol >= 2:
-
-            over15 += 1
-
-
-        # ====================================================
-        # OVER 2.5
-        # ====================================================
-
-        if totale_gol >= 3:
-
-            over25 += 1
-
-
-        # ====================================================
-        # GOAL / NO GOAL
-        # ====================================================
-
-        if (
-
-            fatti > 0
-
-            and
-
-            subiti > 0
-
-        ):
-
-            golgol += 1
-
-
-        partite_valide += 1
-
-
-    # ========================================================
-    # CONTROLLO FINALE
-    # ========================================================
-
-    if partite_valide == 0:
-
-        print(
-            "⚠️ NESSUNA PARTITA VALIDA PER IL TEAM"
-        )
-
-        return statistiche_vuote()
-
-
-    # ========================================================
-    # CALCOLO MEDIE REALI
-    # ========================================================
-
-    media_gol_fatti = round(
-
-        gol_fatti /
-
-        partite_valide,
-
-        2
-
-    )
-
-
-    media_gol_subiti = round(
-
-        gol_subiti /
-
-        partite_valide,
-
-        2
-
-    )
-
-
-    percentuale_over15 = round(
-
-        (
-
-            over15 /
-
-            partite_valide
-
-        ) * 100
-
-    )
-
-
-    percentuale_over25 = round(
-
-        (
-
-            over25 /
-
-            partite_valide
-
-        ) * 100
-
-    )
-
-
-    percentuale_golgol = round(
-
-        (
-
-            golgol /
-
-            partite_valide
-
-        ) * 100
-
-    )
-
-
-    # ========================================================
-    # STATISTICHE FINALI REALI
-    # ========================================================
-
-    statistiche = {
-
-        # Forma testuale
-        "forma":
-        f"{vittorie}V "
-        f"{pareggi}P "
-        f"{sconfitte}S",
-
-
-        # Forma strutturata
-        "vittorie":
-        vittorie,
-
-        "pareggi":
-        pareggi,
-
-        "sconfitte":
-        sconfitte,
-
-
-        # Gol
-        "gol_fatti":
-        gol_fatti,
-
-        "gol_subiti":
-        gol_subiti,
-
-
-        # Medie
-        "media_gol_fatti":
-        media_gol_fatti,
-
-        "media_gol_subiti":
-        media_gol_subiti,
-
-
-        # Percentuali
-        "over15":
-        percentuale_over15,
-
-        "over25":
-        percentuale_over25,
-
-        "golgol":
-        percentuale_golgol,
-
-
-        # Numero partite
-        "partite_analizzate":
-        partite_valide
-
-    }
-
-
-    # ========================================================
-    # LOG
-    # ========================================================
-
-    print(
-        "📊 STATISTICHE FINALI REALI:",
-        statistiche
-    )
-
-
-    # ========================================================
-    # SALVA CACHE
-    # ========================================================
-
-    salva_statistiche(
-
-        team_id,
-
-        statistiche
-
-    )
-
-
-    return statistiche

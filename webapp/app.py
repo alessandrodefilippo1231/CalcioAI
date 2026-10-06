@@ -37,6 +37,129 @@ def classe_probabilita(probabilita):
 
 
 # ============================================================
+# CODICE COMPETIZIONE
+# ============================================================
+
+def codice_competizione(partita):
+    """
+    Determina il codice Football-Data della competizione.
+
+    Serie A            -> SA
+    Champions League   -> CL
+    Premier League     -> PL
+    Bundesliga         -> BL1
+    La Liga            -> PD
+    Ligue 1            -> FL1
+    """
+
+    # --------------------------------------------------------
+    # Prima prova con eventuali campi già presenti
+    # --------------------------------------------------------
+
+    codice = (
+        partita.get("competizione_code")
+        or partita.get("competition_code")
+        or partita.get("codice_competizione")
+        or partita.get("competitionCode")
+    )
+
+    if codice:
+        codice = str(codice).upper().strip()
+
+        if codice in (
+            "SA",
+            "CL",
+            "PL",
+            "BL1",
+            "PD",
+            "FL1"
+        ):
+            return codice
+
+    # --------------------------------------------------------
+    # Prova dal nome della competizione
+    # --------------------------------------------------------
+
+    valori = [
+        partita.get("competizione"),
+        partita.get("competition"),
+        partita.get("lega"),
+    ]
+
+    testo = " ".join(
+        str(v)
+        for v in valori
+        if v
+    ).lower()
+
+    # --------------------------------------------------------
+    # Serie A
+    # --------------------------------------------------------
+
+    if (
+        "serie a" in testo
+        or "seriea" in testo
+    ):
+        return "SA"
+
+    # --------------------------------------------------------
+    # Champions League
+    # --------------------------------------------------------
+
+    if (
+        "champions" in testo
+        or "uefa champions" in testo
+    ):
+        return "CL"
+
+    # --------------------------------------------------------
+    # Premier League
+    # --------------------------------------------------------
+
+    if (
+        "premier league" in testo
+        or "premier" in testo
+    ):
+        return "PL"
+
+    # --------------------------------------------------------
+    # Bundesliga
+    # --------------------------------------------------------
+
+    if (
+        "bundesliga" in testo
+    ):
+        return "BL1"
+
+    # --------------------------------------------------------
+    # La Liga
+    # --------------------------------------------------------
+
+    if (
+        "la liga" in testo
+        or "laliga" in testo
+        or "primera division" in testo
+    ):
+        return "PD"
+
+    # --------------------------------------------------------
+    # Ligue 1
+    # --------------------------------------------------------
+
+    if (
+        "ligue 1" in testo
+        or "ligue1" in testo
+    ):
+        return "FL1"
+
+    # --------------------------------------------------------
+    # Nessuna corrispondenza
+    # --------------------------------------------------------
+
+    return None
+
+
+# ============================================================
 # DASHBOARD
 # ============================================================
 
@@ -50,13 +173,24 @@ def home():
     print("==============================================")
 
     if data_test:
-        print(f"📅 DATA SELEZIONATA: {data_test}")
-        partite = partite_oggi(data_test=data_test)
+
+        print(
+            f"📅 DATA SELEZIONATA: {data_test}"
+        )
+
+        partite = partite_oggi(
+            data_test=data_test
+        )
+
     else:
+
         print("📅 DATA: OGGI")
+
         partite = partite_oggi()
 
-    print(f"⚽ PARTITE TROVATE: {len(partite)}")
+    print(
+        f"⚽ PARTITE TROVATE: {len(partite)}"
+    )
 
     return render_template(
         "index.html",
@@ -79,8 +213,13 @@ def mercati():
     print("==============================================")
 
     if data_test:
-        partite = partite_oggi(data_test=data_test)
+
+        partite = partite_oggi(
+            data_test=data_test
+        )
+
     else:
+
         partite = partite_oggi()
 
     partite_mercati = []
@@ -89,23 +228,79 @@ def mercati():
 
         try:
 
-            casa = partita.get("casa", "")
-            trasferta = partita.get("trasferta", "")
+            casa = partita.get(
+                "casa",
+                ""
+            )
 
-            home_id = partita.get("home_id")
-            away_id = partita.get("away_id")
+            trasferta = partita.get(
+                "trasferta",
+                ""
+            )
 
-            lega = partita.get("lega", "")
-            paese = partita.get("paese", "")
-            ora = partita.get("ora", "")
+            home_id = partita.get(
+                "home_id"
+            )
 
-            statistiche_casa = ultime_partite(home_id)
-            statistiche_trasferta = ultime_partite(away_id)
+            away_id = partita.get(
+                "away_id"
+            )
+
+            lega = partita.get(
+                "lega",
+                ""
+            )
+
+            paese = partita.get(
+                "paese",
+                ""
+            )
+
+            ora = partita.get(
+                "ora",
+                ""
+            )
+
+            # ------------------------------------------------
+            # COMPETIZIONE
+            # ------------------------------------------------
+
+            competition_code = codice_competizione(
+                partita
+            )
+
+            print(
+                f"🏆 {casa} - {trasferta} "
+                f"| Competizione: "
+                f"{competition_code}"
+            )
+
+            # ------------------------------------------------
+            # STATISTICHE
+            # ------------------------------------------------
+
+            statistiche_casa = ultime_partite(
+                home_id,
+                competition_code
+            )
+
+            statistiche_trasferta = ultime_partite(
+                away_id,
+                competition_code
+            )
+
+            # ------------------------------------------------
+            # INDICATORI
+            # ------------------------------------------------
 
             indicatori = calcola_indicatori(
                 statistiche_casa,
                 statistiche_trasferta
             )
+
+            # ------------------------------------------------
+            # MERCATI
+            # ------------------------------------------------
 
             mercati = calcola_mercati_ai(
                 statistiche_casa,
@@ -114,14 +309,28 @@ def mercati():
             )
 
             partite_mercati.append({
-                "fixture_id": partita.get("id"),
+
+                "fixture_id": partita.get(
+                    "id"
+                ),
+
                 "casa": casa,
+
                 "trasferta": trasferta,
+
                 "lega": lega,
+
                 "paese": paese,
+
                 "ora": ora,
+
                 "mercati": mercati,
-                "indicatori": indicatori
+
+                "indicatori": indicatori,
+
+                "competition_code":
+                    competition_code
+
             })
 
         except Exception as e:
@@ -149,9 +358,14 @@ def test_data(data_test):
     print("\n==============================================")
     print("🧪 CALCIOAI - TEST DATA")
     print("==============================================")
-    print(f"📅 DATA TEST: {data_test}")
 
-    partite = partite_oggi(data_test=data_test)
+    print(
+        f"📅 DATA TEST: {data_test}"
+    )
+
+    partite = partite_oggi(
+        data_test=data_test
+    )
 
     return render_template(
         "index.html",
@@ -171,21 +385,31 @@ def analizza(fixture_id):
     print("🧠 CALCIOAI - ANALISI PARTITA")
     print("==============================================")
 
-    print(f"🔔 FIXTURE ID: {fixture_id}")
+    print(
+        f"🔔 FIXTURE ID: {fixture_id}"
+    )
 
-    data_test = request.args.get("data")
+    data_test = request.args.get(
+        "data"
+    )
 
-    print(f"📅 DATA ANALISI TEST: {data_test}")
+    print(
+        f"📅 DATA ANALISI TEST: {data_test}"
+    )
 
     # --------------------------------------------------------
     # CARICAMENTO PARTITE
     # --------------------------------------------------------
 
-    print("\n🌐 WEB APP - CARICAMENTO PARTITE")
+    print(
+        "\n🌐 WEB APP - CARICAMENTO PARTITE"
+    )
 
     if data_test:
 
-        print(f"📅 DATA CALCIOAI: {data_test}")
+        print(
+            f"📅 DATA CALCIOAI: {data_test}"
+        )
 
         partite = partite_oggi(
             data_test=data_test
@@ -193,11 +417,15 @@ def analizza(fixture_id):
 
     else:
 
-        print("📅 DATA CALCIOAI: OGGI")
+        print(
+            "📅 DATA CALCIOAI: OGGI"
+        )
 
         partite = partite_oggi()
 
-    print(f"⚽ Partite trovate: {len(partite)}")
+    print(
+        f"⚽ Partite trovate: {len(partite)}"
+    )
 
     # --------------------------------------------------------
     # CERCA PARTITA
@@ -207,14 +435,18 @@ def analizza(fixture_id):
 
     for p in partite:
 
-        if str(p.get("id")) == str(fixture_id):
+        if str(
+            p.get("id")
+        ) == str(fixture_id):
 
             partita = p
             break
 
     if partita is None:
 
-        print("❌ PARTITA NON TROVATA")
+        print(
+            "❌ PARTITA NON TROVATA"
+        )
 
         return """
         <html>
@@ -237,24 +469,78 @@ def analizza(fixture_id):
     # DATI PARTITA
     # --------------------------------------------------------
 
-    casa = partita.get("casa", "")
-    trasferta = partita.get("trasferta", "")
+    casa = partita.get(
+        "casa",
+        ""
+    )
 
-    home_id = partita.get("home_id")
-    away_id = partita.get("away_id")
+    trasferta = partita.get(
+        "trasferta",
+        ""
+    )
 
-    lega = partita.get("lega", "")
-    paese = partita.get("paese", "")
-    ora = partita.get("ora", "")
+    home_id = partita.get(
+        "home_id"
+    )
 
-    print(f"⚽ {casa} - {trasferta}")
-    print(f"🏆 {lega}")
+    away_id = partita.get(
+        "away_id"
+    )
+
+    lega = partita.get(
+        "lega",
+        ""
+    )
+
+    paese = partita.get(
+        "paese",
+        ""
+    )
+
+    ora = partita.get(
+        "ora",
+        ""
+    )
+
+    # --------------------------------------------------------
+    # CODICE COMPETIZIONE
+    # --------------------------------------------------------
+
+    competition_code = codice_competizione(
+        partita
+    )
+
+    print(
+        f"⚽ {casa} - {trasferta}"
+    )
+
+    print(
+        f"🏆 {lega}"
+    )
+
+    print(
+        f"🔢 COMPETIZIONE CODE: "
+        f"{competition_code}"
+    )
+
+    # --------------------------------------------------------
+    # SICUREZZA COMPETIZIONE
+    # --------------------------------------------------------
+
+    if not competition_code:
+
+        print(
+            "⚠️ Impossibile determinare "
+            "la competizione della partita."
+        )
 
     # --------------------------------------------------------
     # MARCATORI
     # --------------------------------------------------------
 
-    print("\n⚽ ANALISI PROBABILI MARCATORI")
+    print(
+        "\n⚽ ANALISI PROBABILI MARCATORI"
+    )
 
     try:
 
@@ -298,14 +584,18 @@ def analizza(fixture_id):
     # STATISTICHE
     # --------------------------------------------------------
 
-    print("\n📊 RECUPERO STATISTICHE")
+    print(
+        "\n📊 RECUPERO STATISTICHE"
+    )
 
     statistiche_casa = ultime_partite(
-        home_id
+        home_id,
+        competition_code
     )
 
     statistiche_trasferta = ultime_partite(
-        away_id
+        away_id,
+        competition_code
     )
 
     print(
@@ -322,7 +612,9 @@ def analizza(fixture_id):
     # INDICATORI AI
     # --------------------------------------------------------
 
-    print("\n📈 CALCOLO INDICATORI")
+    print(
+        "\n📈 CALCOLO INDICATORI"
+    )
 
     indicatori = calcola_indicatori(
         statistiche_casa,
@@ -338,7 +630,9 @@ def analizza(fixture_id):
     # AI SCORE
     # --------------------------------------------------------
 
-    print("\n🤖 CALCOLO AI SCORE")
+    print(
+        "\n🤖 CALCOLO AI SCORE"
+    )
 
     ai_score = calcola_ai_score(
         statistiche_casa,
@@ -355,7 +649,9 @@ def analizza(fixture_id):
     # MERCATI AI
     # --------------------------------------------------------
 
-    print("\n🎯 CALCOLO MERCATI AI")
+    print(
+        "\n🎯 CALCOLO MERCATI AI"
+    )
 
     mercati = calcola_mercati_ai(
         statistiche_casa,
@@ -391,7 +687,9 @@ def analizza(fixture_id):
     # DECISION ENGINE
     # --------------------------------------------------------
 
-    print("\n🧠 DECISION ENGINE")
+    print(
+        "\n🧠 DECISION ENGINE"
+    )
 
     decisione = scegli_pronostico(
         mercati,
@@ -405,12 +703,18 @@ def analizza(fixture_id):
 
     pronostico = decisione.get(
         "mercato",
-        decisione.get("pronostico", "")
+        decisione.get(
+            "pronostico",
+            ""
+        )
     )
 
     fiducia = decisione.get(
         "probabilita",
-        decisione.get("fiducia", 0)
+        decisione.get(
+            "fiducia",
+            0
+        )
     )
 
     value_index = decisione.get(
@@ -427,7 +731,9 @@ def analizza(fixture_id):
     # RISULTATI ESATTI
     # --------------------------------------------------------
 
-    print("\n🔢 CALCOLO RISULTATI ESATTI")
+    print(
+        "\n🔢 CALCOLO RISULTATI ESATTI"
+    )
 
     try:
 
@@ -454,9 +760,17 @@ def analizza(fixture_id):
     # RISULTATO DECISIONE
     # --------------------------------------------------------
 
-    print("\n==============================================")
-    print("🏆 RISULTATO ANALISI")
-    print("==============================================")
+    print(
+        "\n=============================================="
+    )
+
+    print(
+        "🏆 RISULTATO ANALISI"
+    )
+
+    print(
+        "=============================================="
+    )
 
     print(
         f"🎯 Pronostico: {pronostico}"
@@ -483,6 +797,7 @@ def analizza(fixture_id):
     # --------------------------------------------------------
 
     return render_template(
+
         "analisi.html",
 
         # DATI PARTITA
@@ -494,6 +809,8 @@ def analizza(fixture_id):
         trasferta=trasferta,
         ora=ora,
         paese=paese,
+
+        competition_code=competition_code,
 
         # AI
         pronostico=pronostico,
